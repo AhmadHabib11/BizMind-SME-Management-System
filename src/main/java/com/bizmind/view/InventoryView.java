@@ -1,0 +1,217 @@
+package com.bizmind.view;
+
+import com.bizmind.manager.InventoryManager;
+import com.bizmind.model.Product;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.scene.text.Text;
+
+/**
+ * Inventory list view — shows the product table and navigates to Add/Detail pages.
+ */
+public class InventoryView {
+
+    private final StackPane hostPane;
+    private final VBox root;
+
+    public InventoryView(StackPane hostPane) {
+        this.hostPane = hostPane;
+        root = new VBox(24);
+        root.getStyleClass().add("content-area");
+        root.setPadding(new Insets(32, 40, 32, 40));
+
+        root.getChildren().addAll(
+                buildHeader(),
+                buildTableCard()
+        );
+    }
+
+    // ── Page header ──
+    private HBox buildHeader() {
+        HBox header = new HBox(16);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        Text icon = new Text("📦");
+        icon.setStyle("-fx-font-size: 26px;");
+
+        VBox titleBox = new VBox(2);
+        Label title = new Label("Inventory Management");
+        title.getStyleClass().add("page-title");
+        Label subtitle = new Label("View your products or add a new one to the inventory");
+        subtitle.getStyleClass().add("page-subtitle");
+        titleBox.getChildren().addAll(title, subtitle);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Button addBtn = new Button("＋  Add New Product");
+        addBtn.getStyleClass().add("primary-btn");
+        addBtn.setMinHeight(42);
+        addBtn.setOnAction(e -> openAddProduct());
+
+        header.getChildren().addAll(icon, titleBox, spacer, addBtn);
+        return header;
+    }
+
+    // ── Table card ──
+    @SuppressWarnings("unchecked")
+    private VBox buildTableCard() {
+        VBox card = new VBox(16);
+        card.getStyleClass().add("card");
+        card.setPadding(new Insets(24, 28, 24, 28));
+        VBox.setVgrow(card, Priority.ALWAYS);
+
+        // Card header
+        HBox cardHeader = new HBox(12);
+        cardHeader.setAlignment(Pos.CENTER_LEFT);
+        Label cardTitle = new Label("Product List");
+        cardTitle.getStyleClass().add("card-title");
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        Label countLabel = new Label(InventoryManager.getInstance().getProductCount() + " products");
+        countLabel.getStyleClass().add("product-count-badge");
+
+        Label clickHint = new Label("Click a row to view details →");
+        clickHint.getStyleClass().add("table-hint-label");
+
+        InventoryManager.getInstance().getProducts().addListener(
+                (javafx.collections.ListChangeListener<Product>) c ->
+                        countLabel.setText(InventoryManager.getInstance().getProductCount() + " products")
+        );
+
+        cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, countLabel);
+
+        // ── TableView ──
+        TableView<Product> table = new TableView<>();
+        table.getStyleClass().add("product-table");
+        table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
+        table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
+        VBox.setVgrow(table, Priority.ALWAYS);
+
+        // # column
+        TableColumn<Product, Number> indexCol = new TableColumn<>("#");
+        indexCol.setMinWidth(48); indexCol.setMaxWidth(56); indexCol.setSortable(false);
+        indexCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || getTableRow() == null || getTableRow().getIndex() < 0
+                        ? null : String.valueOf(getTableRow().getIndex() + 1));
+            }
+        });
+
+        // Name
+        TableColumn<Product, String> nameCol = new TableColumn<>("Product Name");
+        nameCol.setCellValueFactory(d -> d.getValue().nameProperty());
+        nameCol.setMinWidth(160);
+
+        // SKU
+        TableColumn<Product, String> skuCol = new TableColumn<>("SKU");
+        skuCol.setCellValueFactory(d -> d.getValue().skuProperty());
+        skuCol.setMinWidth(100);
+
+        // Category
+        TableColumn<Product, String> catCol = new TableColumn<>("Category");
+        catCol.setCellValueFactory(d -> d.getValue().categoryProperty());
+        catCol.setMinWidth(120);
+        catCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); setGraphic(null); return; }
+                Label badge = new Label(item);
+                badge.getStyleClass().add("category-badge");
+                setText(null); setGraphic(badge);
+            }
+        });
+
+        // Selling Price
+        TableColumn<Product, Number> priceCol = new TableColumn<>("Selling Price");
+        priceCol.setCellValueFactory(d -> d.getValue().sellingPriceProperty());
+        priceCol.setMinWidth(120);
+        priceCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : String.format("Rs. %,.2f", item.doubleValue()));
+            }
+        });
+
+        // Quantity
+        TableColumn<Product, Number> qtyCol = new TableColumn<>("Qty");
+        qtyCol.setCellValueFactory(d -> d.getValue().quantityProperty());
+        qtyCol.setMinWidth(70);
+        qtyCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) { setText(null); setGraphic(null); return; }
+                int qty = item.intValue();
+                Label badge = new Label(String.valueOf(qty));
+                badge.getStyleClass().add("qty-badge");
+                if (qty == 0) badge.getStyleClass().add("qty-zero");
+                else if (qty <= 5) badge.getStyleClass().add("qty-low");
+                setText(null); setGraphic(badge);
+            }
+        });
+
+        // Min Stock
+        TableColumn<Product, Number> minCol = new TableColumn<>("Min. Stock");
+        minCol.setCellValueFactory(d -> d.getValue().minimumStockProperty());
+        minCol.setMinWidth(80);
+
+        // Status
+        TableColumn<Product, String> statusCol = new TableColumn<>("Status");
+        statusCol.setMinWidth(100); statusCol.setSortable(false);
+        statusCol.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || getTableRow() == null || getTableRow().getItem() == null) {
+                    setText(null); setGraphic(null); return;
+                }
+                Product p = (Product) getTableRow().getItem();
+                int qty = p.getQuantity(); int min = p.getMinimumStock();
+                Label badge; String text; String style;
+                if (qty == 0) { text = "Out of Stock"; style = "status-out-of-stock"; }
+                else if (qty <= min) { text = "Low Stock"; style = "status-low-stock"; }
+                else { text = "In Stock"; style = "status-in-stock"; }
+                badge = new Label("● " + text);
+                badge.getStyleClass().addAll("status-badge", style);
+                setText(null); setGraphic(badge);
+            }
+        });
+
+        table.getColumns().addAll(indexCol, nameCol, skuCol, catCol, priceCol, qtyCol, minCol, statusCol);
+        table.setItems(InventoryManager.getInstance().getProducts());
+
+        // Row click → ProductDetailsView
+        table.setRowFactory(tv -> {
+            TableRow<Product> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (!row.isEmpty() && event.getClickCount() == 1) {
+                    openProductDetails(row.getItem());
+                }
+            });
+            return row;
+        });
+
+        card.getChildren().addAll(cardHeader, table);
+        return card;
+    }
+
+    private void openAddProduct() {
+        AddProductView addView = new AddProductView(this::show);
+        hostPane.getChildren().setAll(addView.getRoot());
+    }
+
+    private void openProductDetails(Product product) {
+        ProductDetailsView detailsView = new ProductDetailsView(product, this::show);
+        hostPane.getChildren().setAll(detailsView.getRoot());
+    }
+
+    public void show() {
+        hostPane.getChildren().setAll(root);
+    }
+
+    public VBox getRoot() { return root; }
+}
