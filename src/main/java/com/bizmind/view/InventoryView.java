@@ -3,6 +3,8 @@ package com.bizmind.view;
 import com.bizmind.manager.InventoryManager;
 import com.bizmind.model.Product;
 import javafx.animation.PauseTransition;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -11,6 +13,8 @@ import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -95,11 +99,6 @@ public class InventoryView {
         Button deleteBtn = new Button("Delete Product");
         deleteBtn.getStyleClass().add("danger-btn");
 
-        InventoryManager.getInstance().getProducts().addListener(
-                (javafx.collections.ListChangeListener<Product>) c ->
-                        countLabel.setText(InventoryManager.getInstance().getProductCount() + " products")
-        );
-
         cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, editBtn, deleteBtn, countLabel);
 
         HBox searchRow = new HBox(10);
@@ -118,6 +117,16 @@ public class InventoryView {
 
         Button clearSearchBtn = new Button("Clear");
         clearSearchBtn.getStyleClass().add("ghost-btn");
+
+        Label categoryFilterLabel = new Label("Filter by Category:");
+        categoryFilterLabel.getStyleClass().add("field-label");
+
+        ComboBox<String> categoryFilterCombo = new ComboBox<>();
+        categoryFilterCombo.getStyleClass().add("combo-input");
+        categoryFilterCombo.setPromptText("All");
+        categoryFilterCombo.setMinWidth(190);
+        categoryFilterCombo.setPrefWidth(210);
+        populateCategoryFilterOptions(categoryFilterCombo);
 
         // ── TableView ──
         TableView<Product> table = new TableView<>();
@@ -223,13 +232,29 @@ public class InventoryView {
         );
         table.setItems(filteredProducts);
 
-        searchBtn.setOnAction(e -> applySearch(table, searchField, filteredProducts));
-        clearSearchBtn.setOnAction(e -> clearSearch(table, searchField, filteredProducts));
-        searchField.setOnAction(e -> applySearch(table, searchField, filteredProducts));
+        searchBtn.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
+        clearSearchBtn.setOnAction(e -> clearSearch(table, searchField, categoryFilterCombo, filteredProducts));
+        searchField.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
+        categoryFilterCombo.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
 
-        searchRow.getChildren().addAll(searchLabel, searchField, searchBtn, clearSearchBtn);
+        searchRow.getChildren().addAll(
+            searchLabel,
+            searchField,
+            searchBtn,
+            clearSearchBtn,
+            categoryFilterLabel,
+            categoryFilterCombo
+        );
         editBtn.setOnAction(e -> handleEditSelectedProduct(table));
         deleteBtn.setOnAction(e -> handleDeleteSelectedProduct(table, actionFeedback));
+
+        InventoryManager.getInstance().getProducts().addListener(
+            (javafx.collections.ListChangeListener<Product>) c -> {
+                countLabel.setText(InventoryManager.getInstance().getProductCount() + " products");
+                populateCategoryFilterOptions(categoryFilterCombo);
+                applySearch(table, searchField, categoryFilterCombo, filteredProducts);
+            }
+        );
 
         // Row double click → AddProductView in edit mode
         table.setRowFactory(tv -> {
@@ -311,29 +336,57 @@ public class InventoryView {
         }
     }
 
-    private void applySearch(TableView<Product> table, TextField searchField, FilteredList<Product> filteredProducts) {
+    private void applySearch(TableView<Product> table, TextField searchField,
+                             ComboBox<String> categoryFilterCombo, FilteredList<Product> filteredProducts) {
         String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase();
+        String selectedCategory = categoryFilterCombo.getValue() == null ? "All" : categoryFilterCombo.getValue();
+        boolean hasCategoryFilter = !"All".equalsIgnoreCase(selectedCategory);
 
-        if (query.isEmpty()) {
-            filteredProducts.setPredicate(product -> true);
-            table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
-            return;
-        }
+        filteredProducts.setPredicate(product -> {
+            String name = product.getName() == null ? "" : product.getName().toLowerCase();
+            String sku = product.getSku() == null ? "" : product.getSku().toLowerCase();
+            String category = product.getCategory() == null ? "" : product.getCategory();
 
-        filteredProducts.setPredicate(product ->
-                product.getName().toLowerCase().contains(query)
-                        || product.getSku().toLowerCase().contains(query)
-        );
+            boolean matchesSearch = query.isEmpty() || name.contains(query) || sku.contains(query);
+            boolean matchesCategory = !hasCategoryFilter || category.equalsIgnoreCase(selectedCategory);
 
-        if (filteredProducts.isEmpty()) {
+            return matchesSearch && matchesCategory;
+        });
+
+        if (filteredProducts.isEmpty() && (!query.isEmpty() || hasCategoryFilter)) {
             table.setPlaceholder(new Label("No products found"));
+        } else {
+            table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
         }
     }
 
-    private void clearSearch(TableView<Product> table, TextField searchField, FilteredList<Product> filteredProducts) {
+    private void clearSearch(TableView<Product> table, TextField searchField,
+                             ComboBox<String> categoryFilterCombo, FilteredList<Product> filteredProducts) {
         searchField.clear();
-        filteredProducts.setPredicate(product -> true);
-        table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
+        categoryFilterCombo.setValue("All");
+        applySearch(table, searchField, categoryFilterCombo, filteredProducts);
+    }
+
+    private void populateCategoryFilterOptions(ComboBox<String> categoryFilterCombo) {
+        String previousSelection = categoryFilterCombo.getValue();
+
+        List<String> categories = InventoryManager.getInstance().getProducts().stream()
+                .map(Product::getCategory)
+                .filter(category -> category != null && !category.isBlank())
+                .distinct()
+                .sorted(Comparator.naturalOrder())
+                .toList();
+
+        ObservableList<String> items = FXCollections.observableArrayList();
+        items.add("All");
+        items.addAll(categories);
+
+        categoryFilterCombo.setItems(items);
+        if (previousSelection != null && items.contains(previousSelection)) {
+            categoryFilterCombo.setValue(previousSelection);
+        } else {
+            categoryFilterCombo.setValue("All");
+        }
     }
 
     private void openProductDetails(Product product) {
