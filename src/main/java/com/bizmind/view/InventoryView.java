@@ -2,11 +2,15 @@ package com.bizmind.view;
 
 import com.bizmind.manager.InventoryManager;
 import com.bizmind.model.Product;
+import javafx.animation.PauseTransition;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
+import javafx.util.Duration;
+
+import java.util.Optional;
 
 /**
  * Inventory list view — shows the product table and navigates to Add/Detail pages.
@@ -63,6 +67,12 @@ public class InventoryView {
         card.setPadding(new Insets(24, 28, 24, 28));
         VBox.setVgrow(card, Priority.ALWAYS);
 
+        Label actionFeedback = new Label();
+        actionFeedback.getStyleClass().add("feedback-label");
+        actionFeedback.setVisible(false);
+        actionFeedback.setManaged(false);
+        actionFeedback.setWrapText(true);
+
         // Card header
         HBox cardHeader = new HBox(12);
         cardHeader.setAlignment(Pos.CENTER_LEFT);
@@ -75,15 +85,21 @@ public class InventoryView {
         Label countLabel = new Label(InventoryManager.getInstance().getProductCount() + " products");
         countLabel.getStyleClass().add("product-count-badge");
 
-        Label clickHint = new Label("Click a row to edit product →");
+        Label clickHint = new Label("Select a row, then click Edit or Delete");
         clickHint.getStyleClass().add("table-hint-label");
+
+        Button editBtn = new Button("Edit Product");
+        editBtn.getStyleClass().add("secondary-btn");
+
+        Button deleteBtn = new Button("Delete Product");
+        deleteBtn.getStyleClass().add("danger-btn");
 
         InventoryManager.getInstance().getProducts().addListener(
                 (javafx.collections.ListChangeListener<Product>) c ->
                         countLabel.setText(InventoryManager.getInstance().getProductCount() + " products")
         );
 
-        cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, countLabel);
+        cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, editBtn, deleteBtn, countLabel);
 
         // ── TableView ──
         TableView<Product> table = new TableView<>();
@@ -183,19 +199,21 @@ public class InventoryView {
 
         table.getColumns().addAll(indexCol, nameCol, skuCol, catCol, priceCol, qtyCol, minCol, statusCol);
         table.setItems(InventoryManager.getInstance().getProducts());
+        editBtn.setOnAction(e -> handleEditSelectedProduct(table));
+        deleteBtn.setOnAction(e -> handleDeleteSelectedProduct(table, actionFeedback));
 
-        // Row click → AddProductView in edit mode
+        // Row double click → AddProductView in edit mode
         table.setRowFactory(tv -> {
             TableRow<Product> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
-                if (!row.isEmpty() && event.getClickCount() == 1) {
+                if (!row.isEmpty() && event.getClickCount() == 2) {
                     openEditProduct(row.getItem());
                 }
             });
             return row;
         });
 
-        card.getChildren().addAll(cardHeader, table);
+        card.getChildren().addAll(cardHeader, actionFeedback, table);
         return card;
     }
 
@@ -207,6 +225,61 @@ public class InventoryView {
     private void openEditProduct(Product product) {
         AddProductView editView = new AddProductView(this::show, product);
         hostPane.getChildren().setAll(editView.getRoot());
+    }
+
+    private void handleEditSelectedProduct(TableView<Product> table) {
+        Product selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Edit Product");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select a product to edit");
+            alert.showAndWait();
+            return;
+        }
+
+        openEditProduct(selected);
+    }
+
+    private void handleDeleteSelectedProduct(TableView<Product> table, Label actionFeedback) {
+        Product selected = table.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Delete Product");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select a product to delete");
+            alert.showAndWait();
+            return;
+        }
+
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
+        confirm.setTitle("Delete Product");
+        confirm.setHeaderText(null);
+        confirm.setContentText("Are you sure you want to delete this product?");
+
+        Optional<ButtonType> result = confirm.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            InventoryManager.getInstance().getProducts().remove(selected);
+            table.refresh();
+            showTableFeedback(actionFeedback, "Product deleted successfully", false);
+        }
+    }
+
+    private void showTableFeedback(Label label, String message, boolean isError) {
+        label.setText(message);
+        label.getStyleClass().removeAll("feedback-success", "feedback-error");
+        label.getStyleClass().add(isError ? "feedback-error" : "feedback-success");
+        label.setVisible(true);
+        label.setManaged(true);
+
+        if (!isError) {
+            PauseTransition pause = new PauseTransition(Duration.seconds(3));
+            pause.setOnFinished(e -> {
+                label.setVisible(false);
+                label.setManaged(false);
+            });
+            pause.play();
+        }
     }
 
     private void openProductDetails(Product product) {
