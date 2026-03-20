@@ -351,6 +351,18 @@
     -fx-background-color: #f0f7ff;
 }
 
+.product-table .table-row-cell.low-stock-row {
+    -fx-background-color: #fffbeb;
+}
+
+.product-table .table-row-cell.low-stock-row:hover {
+    -fx-background-color: #fef3c7;
+}
+
+.product-table .table-row-cell.low-stock-row:selected {
+    -fx-background-color: #fde68a;
+}
+
 .product-table .table-cell {
     -fx-text-fill: #334155;
     -fx-font-size: 13px;

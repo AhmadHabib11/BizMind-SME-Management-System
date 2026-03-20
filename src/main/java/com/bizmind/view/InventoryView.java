@@ -24,6 +24,12 @@ public class InventoryView {
 
     private final StackPane hostPane;
     private final VBox root;
+    private TableView<Product> inventoryTable;
+    private Label lowStockIndicatorLabel;
+    private TextField searchFieldRef;
+    private ComboBox<String> categoryFilterComboRef;
+    private FilteredList<Product> filteredProductsRef;
+    private boolean lowStockOnly = false;
 
     public InventoryView(StackPane hostPane) {
         this.hostPane = hostPane;
@@ -83,6 +89,7 @@ public class InventoryView {
         lowStockIndicator.setVisible(false);
         lowStockIndicator.setManaged(false);
         lowStockIndicator.setWrapText(true);
+        lowStockIndicatorLabel = lowStockIndicator;
 
         // Card header
         HBox cardHeader = new HBox(12);
@@ -102,10 +109,13 @@ public class InventoryView {
         Button editBtn = new Button("Edit Product");
         editBtn.getStyleClass().add("secondary-btn");
 
+        Button lowStockBtn = new Button("Low Stock");
+        lowStockBtn.getStyleClass().add("secondary-btn");
+
         Button deleteBtn = new Button("Delete Product");
         deleteBtn.getStyleClass().add("danger-btn");
 
-        cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, editBtn, deleteBtn, countLabel);
+        cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, lowStockBtn, editBtn, deleteBtn, countLabel);
 
         HBox searchRow = new HBox(10);
         searchRow.setAlignment(Pos.CENTER_LEFT);
@@ -117,6 +127,7 @@ public class InventoryView {
         searchField.setPromptText("Enter product name or SKU");
         searchField.getStyleClass().add("text-input");
         HBox.setHgrow(searchField, Priority.ALWAYS);
+        searchFieldRef = searchField;
 
         Button searchBtn = new Button("Search");
         searchBtn.getStyleClass().add("secondary-btn");
@@ -133,9 +144,11 @@ public class InventoryView {
         categoryFilterCombo.setMinWidth(190);
         categoryFilterCombo.setPrefWidth(210);
         populateCategoryFilterOptions(categoryFilterCombo);
+        categoryFilterComboRef = categoryFilterCombo;
 
         // ── TableView ──
         TableView<Product> table = new TableView<>();
+        inventoryTable = table;
         table.getStyleClass().add("product-table");
         table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_ALL_COLUMNS);
@@ -241,12 +254,18 @@ public class InventoryView {
             InventoryManager.getInstance().getProducts(),
             product -> true
         );
+        filteredProductsRef = filteredProducts;
         table.setItems(filteredProducts);
 
         searchBtn.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
         clearSearchBtn.setOnAction(e -> clearSearch(table, searchField, categoryFilterCombo, filteredProducts));
         searchField.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
         categoryFilterCombo.setOnAction(e -> applySearch(table, searchField, categoryFilterCombo, filteredProducts));
+        lowStockBtn.setOnAction(e -> {
+            lowStockOnly = !lowStockOnly;
+            updateLowStockButtonStyle(lowStockBtn);
+            applySearch(table, searchField, categoryFilterCombo, filteredProducts);
+        });
 
         searchRow.getChildren().addAll(
             searchLabel,
@@ -265,13 +284,24 @@ public class InventoryView {
                 populateCategoryFilterOptions(categoryFilterCombo);
                 applySearch(table, searchField, categoryFilterCombo, filteredProducts);
                 updateLowStockIndicator(lowStockIndicator);
+                table.refresh();
             }
         );
         updateLowStockIndicator(lowStockIndicator);
+        updateLowStockButtonStyle(lowStockBtn);
 
         // Row double click → AddProductView in edit mode
         table.setRowFactory(tv -> {
-            TableRow<Product> row = new TableRow<>();
+            TableRow<Product> row = new TableRow<>() {
+                @Override
+                protected void updateItem(Product item, boolean empty) {
+                    super.updateItem(item, empty);
+                    getStyleClass().remove("low-stock-row");
+                    if (!empty && item != null && item.getQuantity() <= item.getMinimumStock()) {
+                        getStyleClass().add("low-stock-row");
+                    }
+                }
+            };
             row.setOnMouseClicked(event -> {
                 if (!row.isEmpty() && event.getClickCount() == 2) {
                     openEditProduct(row.getItem());
@@ -362,15 +392,19 @@ public class InventoryView {
 
             boolean matchesSearch = query.isEmpty() || name.contains(query) || sku.contains(query);
             boolean matchesCategory = !hasCategoryFilter || category.equalsIgnoreCase(selectedCategory);
+            boolean matchesLowStockOnly = !lowStockOnly || product.getQuantity() <= product.getMinimumStock();
 
-            return matchesSearch && matchesCategory;
+            return matchesSearch && matchesCategory && matchesLowStockOnly;
         });
 
-        if (filteredProducts.isEmpty() && (!query.isEmpty() || hasCategoryFilter)) {
+        if (filteredProducts.isEmpty() && lowStockOnly) {
+            table.setPlaceholder(new Label("No low stock products found"));
+        } else if (filteredProducts.isEmpty() && (!query.isEmpty() || hasCategoryFilter)) {
             table.setPlaceholder(new Label("No products found"));
         } else {
             table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
         }
+        table.refresh();
     }
 
     private void clearSearch(TableView<Product> table, TextField searchField,
@@ -408,13 +442,19 @@ public class InventoryView {
                 .count();
 
         if (lowStockCount > 0) {
-            indicatorLabel.setText("Low stock alert: " + lowStockCount + " product(s) are at or below minimum stock level.");
+            indicatorLabel.setText("Warning: " + lowStockCount + " product(s) are low on stock");
             indicatorLabel.setVisible(true);
             indicatorLabel.setManaged(true);
         } else {
             indicatorLabel.setVisible(false);
             indicatorLabel.setManaged(false);
         }
+    }
+
+    private void updateLowStockButtonStyle(Button lowStockBtn) {
+        lowStockBtn.getStyleClass().removeAll("primary-btn", "secondary-btn");
+        lowStockBtn.getStyleClass().add(lowStockOnly ? "primary-btn" : "secondary-btn");
+        lowStockBtn.setText(lowStockOnly ? "Show All" : "Low Stock");
     }
 
     private void openProductDetails(Product product) {
@@ -424,6 +464,12 @@ public class InventoryView {
 
     public void show() {
         hostPane.getChildren().setAll(root);
+        if (lowStockIndicatorLabel != null) {
+            updateLowStockIndicator(lowStockIndicatorLabel);
+        }
+        if (inventoryTable != null && searchFieldRef != null && categoryFilterComboRef != null && filteredProductsRef != null) {
+            applySearch(inventoryTable, searchFieldRef, categoryFilterComboRef, filteredProductsRef);
+        }
     }
 
     public VBox getRoot() { return root; }
