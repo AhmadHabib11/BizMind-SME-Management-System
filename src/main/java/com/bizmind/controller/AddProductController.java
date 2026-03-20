@@ -4,6 +4,7 @@ import com.bizmind.manager.InventoryManager;
 import com.bizmind.model.Product;
 import com.bizmind.view.AddProductView;
 import javafx.animation.PauseTransition;
+import javafx.scene.control.Alert;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
@@ -15,12 +16,100 @@ import javafx.util.Duration;
 public class AddProductController {
 
     private final AddProductView view;
+    private Product editingProduct;
 
     public AddProductController(AddProductView view) {
         this.view = view;
     }
 
+    public void loadProductIntoForm(Product product) {
+        if (product == null) {
+            return;
+        }
+
+        editingProduct = product;
+        view.nameField.setText(product.getName());
+        view.skuField.setText(product.getSku());
+        view.categoryCombo.setValue(product.getCategory());
+        view.descriptionArea.setText(product.getDescription());
+        view.costPriceField.setText(String.valueOf(product.getCostPrice()));
+        view.sellingPriceField.setText(String.valueOf(product.getSellingPrice()));
+        view.qtyField.setText(String.valueOf(product.getQuantity()));
+        view.minStockField.setText(String.valueOf(product.getMinimumStock()));
+
+        String imagePath = product.getImagePath();
+        if (imagePath == null || imagePath.isBlank()) {
+            view.imagePathLabel.setText("No image selected");
+            view.imagePathLabel.getStyleClass().remove("image-path-selected");
+        } else {
+            view.imagePathLabel.setText(imagePath);
+            if (!view.imagePathLabel.getStyleClass().contains("image-path-selected")) {
+                view.imagePathLabel.getStyleClass().add("image-path-selected");
+            }
+        }
+    }
+
     public void handleSave() {
+        ValidationResult result = validateForm(false);
+        if (!result.valid()) {
+            showFeedback(view.feedbackLabel, result.errorText(), true);
+            showValidationAlert(result.errorText());
+            return;
+        }
+
+        Product product = new Product(
+                result.name(),
+                result.sku(),
+                result.category(),
+                result.description(),
+                result.costPrice(),
+                result.sellingPrice(),
+                result.quantity(),
+                result.minStock(),
+                result.imagePath()
+        );
+        InventoryManager.getInstance().addProduct(product);
+
+        showFeedback(view.feedbackLabel, "✓ Product \"" + result.name() + "\" saved successfully!", false);
+
+        // Return to inventory after successful save.
+        PauseTransition pause = new PauseTransition(Duration.seconds(1.2));
+        pause.setOnFinished(e -> view.goBack());
+        pause.play();
+    }
+
+    public void handleUpdate() {
+        if (editingProduct == null) {
+            showValidationAlert("No product selected for update.");
+            return;
+        }
+
+        ValidationResult result = validateForm(true);
+        if (!result.valid()) {
+            showFeedback(view.feedbackLabel, result.errorText(), true);
+            showValidationAlert(result.errorText());
+            return;
+        }
+
+        // Update existing Product object so TableView reflects property changes.
+        editingProduct.setName(result.name());
+        editingProduct.setSku(result.sku());
+        editingProduct.setCategory(result.category());
+        editingProduct.setDescription(result.description());
+        editingProduct.setCostPrice(result.costPrice());
+        editingProduct.setSellingPrice(result.sellingPrice());
+        editingProduct.setQuantity(result.quantity());
+        editingProduct.setMinimumStock(result.minStock());
+        editingProduct.setImagePath(result.imagePath());
+
+        showFeedback(view.feedbackLabel, "✓ Product updated successfully!", false);
+
+        PauseTransition pause = new PauseTransition(Duration.seconds(0.8));
+        pause.setOnFinished(e -> view.goBack());
+        pause.play();
+    }
+
+    private ValidationResult validateForm(boolean isUpdate) {
         TextField nameField       = view.nameField;
         TextField skuField        = view.skuField;
         ComboBox<String> catCombo = view.categoryCombo;
@@ -50,7 +139,7 @@ public class AddProductController {
         if (sku.isEmpty()) {
             errors.append("• SKU / Product Code is required\n");
             skuField.getStyleClass().add("input-error");
-        } else if (isSkuDuplicate(sku)) {
+        } else if (isSkuDuplicate(sku, isUpdate)) {
             errors.append("• SKU \"" + sku + "\" already exists — must be unique\n");
             skuField.getStyleClass().add("input-error");
         }
@@ -140,28 +229,18 @@ public class AddProductController {
 
         // ── Show error or save ──
         if (errors.length() > 0) {
-            showFeedback(feedback, errors.toString().trim(), true);
-            return;
+            return ValidationResult.invalid(errors.toString().trim());
         }
 
         String description = view.descriptionArea.getText().trim();
         String imagePath   = view.imagePathLabel.getText().equals("No image selected") ? "" : view.imagePathLabel.getText();
 
-        Product product = new Product(name, sku, category, description,
-                costPrice, sellingPrice, quantity, minStock, imagePath);
-        InventoryManager.getInstance().addProduct(product);
-
-        showFeedback(feedback, "✓ Product \"" + name + "\" saved successfully!", false);
-
-        // Auto-clear and navigate back after brief delay
-        PauseTransition pause = new PauseTransition(Duration.seconds(1.2));
-        pause.setOnFinished(e -> view.clearForm());
-        pause.play();
+        return ValidationResult.valid(name, sku, category, description, costPrice, sellingPrice, quantity, minStock, imagePath);
     }
 
-    private boolean isSkuDuplicate(String sku) {
+    private boolean isSkuDuplicate(String sku, boolean isUpdate) {
         return InventoryManager.getInstance().getProducts().stream()
-                .anyMatch(p -> p.getSku().equalsIgnoreCase(sku));
+                .anyMatch(p -> p.getSku().equalsIgnoreCase(sku) && (!isUpdate || p != editingProduct));
     }
 
     private void showFeedback(Label label, String message, boolean isError) {
@@ -178,6 +257,39 @@ public class AddProductController {
                 label.setManaged(false);
             });
             pause.play();
+        }
+    }
+
+    private void showValidationAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Validation Error");
+        alert.setHeaderText("Please fix the highlighted input issues");
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private record ValidationResult(
+            boolean valid,
+            String errorText,
+            String name,
+            String sku,
+            String category,
+            String description,
+            double costPrice,
+            double sellingPrice,
+            int quantity,
+            int minStock,
+            String imagePath
+    ) {
+        private static ValidationResult invalid(String errorText) {
+            return new ValidationResult(false, errorText, "", "", "", "", 0, 0, 0, 0, "");
+        }
+
+        private static ValidationResult valid(String name, String sku, String category, String description,
+                                              double costPrice, double sellingPrice, int quantity,
+                                              int minStock, String imagePath) {
+            return new ValidationResult(true, "", name, sku, category, description,
+                    costPrice, sellingPrice, quantity, minStock, imagePath);
         }
     }
 }

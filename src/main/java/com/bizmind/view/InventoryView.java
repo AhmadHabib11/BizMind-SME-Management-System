@@ -75,7 +75,7 @@ public class InventoryView {
         Label countLabel = new Label(InventoryManager.getInstance().getProductCount() + " products");
         countLabel.getStyleClass().add("product-count-badge");
 
-        Label clickHint = new Label("Click a row to view details →");
+        Label clickHint = new Label("Click a row to edit product →");
         clickHint.getStyleClass().add("table-hint-label");
 
         InventoryManager.getInstance().getProducts().addListener(
@@ -184,12 +184,12 @@ public class InventoryView {
         table.getColumns().addAll(indexCol, nameCol, skuCol, catCol, priceCol, qtyCol, minCol, statusCol);
         table.setItems(InventoryManager.getInstance().getProducts());
 
-        // Row click → ProductDetailsView
+        // Row click → AddProductView in edit mode
         table.setRowFactory(tv -> {
             TableRow<Product> row = new TableRow<>();
             row.setOnMouseClicked(event -> {
                 if (!row.isEmpty() && event.getClickCount() == 1) {
-                    openProductDetails(row.getItem());
+                    openEditProduct(row.getItem());
                 }
             });
             return row;
@@ -202,6 +202,11 @@ public class InventoryView {
     private void openAddProduct() {
         AddProductView addView = new AddProductView(this::show);
         hostPane.getChildren().setAll(addView.getRoot());
+    }
+
+    private void openEditProduct(Product product) {
+        AddProductView editView = new AddProductView(this::show, product);
+        hostPane.getChildren().setAll(editView.getRoot());
     }
 
     private void openProductDetails(Product product) {
