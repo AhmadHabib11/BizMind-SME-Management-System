@@ -637,6 +637,18 @@
     -fx-font-style: italic;
 }
 
+.stock-alert-label {
+    -fx-background-color: #fffbeb;
+    -fx-text-fill: #d97706;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 12;
+    -fx-background-radius: 8;
+    -fx-border-color: #fde68a;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
+}
+
 /* ============================================
    PRODUCT DETAILS PAGE
    ============================================ */

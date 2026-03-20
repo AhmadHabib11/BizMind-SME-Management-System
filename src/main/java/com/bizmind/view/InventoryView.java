@@ -78,6 +78,12 @@ public class InventoryView {
         actionFeedback.setManaged(false);
         actionFeedback.setWrapText(true);
 
+        Label lowStockIndicator = new Label();
+        lowStockIndicator.getStyleClass().add("stock-alert-label");
+        lowStockIndicator.setVisible(false);
+        lowStockIndicator.setManaged(false);
+        lowStockIndicator.setWrapText(true);
+
         // Card header
         HBox cardHeader = new HBox(12);
         cardHeader.setAlignment(Pos.CENTER_LEFT);
@@ -193,7 +199,12 @@ public class InventoryView {
                 Label badge = new Label(String.valueOf(qty));
                 badge.getStyleClass().add("qty-badge");
                 if (qty == 0) badge.getStyleClass().add("qty-zero");
-                else if (qty <= 5) badge.getStyleClass().add("qty-low");
+                else {
+                    Product p = getTableRow() == null ? null : (Product) getTableRow().getItem();
+                    if (p != null && qty <= p.getMinimumStock()) {
+                        badge.getStyleClass().add("qty-low");
+                    }
+                }
                 setText(null); setGraphic(badge);
             }
         });
@@ -253,8 +264,10 @@ public class InventoryView {
                 countLabel.setText(InventoryManager.getInstance().getProductCount() + " products");
                 populateCategoryFilterOptions(categoryFilterCombo);
                 applySearch(table, searchField, categoryFilterCombo, filteredProducts);
+                updateLowStockIndicator(lowStockIndicator);
             }
         );
+        updateLowStockIndicator(lowStockIndicator);
 
         // Row double click → AddProductView in edit mode
         table.setRowFactory(tv -> {
@@ -267,7 +280,7 @@ public class InventoryView {
             return row;
         });
 
-        card.getChildren().addAll(cardHeader, searchRow, actionFeedback, table);
+        card.getChildren().addAll(cardHeader, searchRow, lowStockIndicator, actionFeedback, table);
         return card;
     }
 
@@ -386,6 +399,21 @@ public class InventoryView {
             categoryFilterCombo.setValue(previousSelection);
         } else {
             categoryFilterCombo.setValue("All");
+        }
+    }
+
+    private void updateLowStockIndicator(Label indicatorLabel) {
+        long lowStockCount = InventoryManager.getInstance().getProducts().stream()
+                .filter(p -> p.getQuantity() > 0 && p.getQuantity() <= p.getMinimumStock())
+                .count();
+
+        if (lowStockCount > 0) {
+            indicatorLabel.setText("Low stock alert: " + lowStockCount + " product(s) are at or below minimum stock level.");
+            indicatorLabel.setVisible(true);
+            indicatorLabel.setManaged(true);
+        } else {
+            indicatorLabel.setVisible(false);
+            indicatorLabel.setManaged(false);
         }
     }
 

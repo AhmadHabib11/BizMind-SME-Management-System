@@ -120,7 +120,7 @@ public class AddProductController {
         Label feedback            = view.feedbackLabel;
 
         // Reset error states
-        for (TextField f : new TextField[]{nameField, skuField, costField, sellField, qtyField}) {
+        for (TextField f : new TextField[]{nameField, skuField, costField, sellField, qtyField, minStockField}) {
             f.getStyleClass().remove("input-error");
         }
         catCombo.getStyleClass().remove("input-error");
@@ -211,14 +211,17 @@ public class AddProductController {
             }
         }
 
-        // ── Minimum Stock (optional, defaults to 0) ──
+        // ── Minimum Stock (required, must be positive) ──
         int minStock = 0;
         String minText = minStockField.getText().trim();
-        if (!minText.isEmpty()) {
+        if (minText.isEmpty()) {
+            errors.append("• Minimum stock level is required\n");
+            minStockField.getStyleClass().add("input-error");
+        } else {
             try {
                 minStock = Integer.parseInt(minText);
-                if (minStock < 0) {
-                    errors.append("• Minimum stock level cannot be negative\n");
+                if (minStock <= 0) {
+                    errors.append("• Minimum stock level must be a positive whole number\n");
                     minStockField.getStyleClass().add("input-error");
                 }
             } catch (NumberFormatException e) {
