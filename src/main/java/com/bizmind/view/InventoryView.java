@@ -3,6 +3,7 @@ package com.bizmind.view;
 import com.bizmind.manager.InventoryManager;
 import com.bizmind.model.Product;
 import javafx.animation.PauseTransition;
+import javafx.collections.transformation.FilteredList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -101,6 +102,23 @@ public class InventoryView {
 
         cardHeader.getChildren().addAll(cardTitle, spacer, clickHint, editBtn, deleteBtn, countLabel);
 
+        HBox searchRow = new HBox(10);
+        searchRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label searchLabel = new Label("Search:");
+        searchLabel.getStyleClass().add("field-label");
+
+        TextField searchField = new TextField();
+        searchField.setPromptText("Enter product name or SKU");
+        searchField.getStyleClass().add("text-input");
+        HBox.setHgrow(searchField, Priority.ALWAYS);
+
+        Button searchBtn = new Button("Search");
+        searchBtn.getStyleClass().add("secondary-btn");
+
+        Button clearSearchBtn = new Button("Clear");
+        clearSearchBtn.getStyleClass().add("ghost-btn");
+
         // ── TableView ──
         TableView<Product> table = new TableView<>();
         table.getStyleClass().add("product-table");
@@ -198,7 +216,18 @@ public class InventoryView {
         });
 
         table.getColumns().addAll(indexCol, nameCol, skuCol, catCol, priceCol, qtyCol, minCol, statusCol);
-        table.setItems(InventoryManager.getInstance().getProducts());
+
+        FilteredList<Product> filteredProducts = new FilteredList<>(
+            InventoryManager.getInstance().getProducts(),
+            product -> true
+        );
+        table.setItems(filteredProducts);
+
+        searchBtn.setOnAction(e -> applySearch(table, searchField, filteredProducts));
+        clearSearchBtn.setOnAction(e -> clearSearch(table, searchField, filteredProducts));
+        searchField.setOnAction(e -> applySearch(table, searchField, filteredProducts));
+
+        searchRow.getChildren().addAll(searchLabel, searchField, searchBtn, clearSearchBtn);
         editBtn.setOnAction(e -> handleEditSelectedProduct(table));
         deleteBtn.setOnAction(e -> handleDeleteSelectedProduct(table, actionFeedback));
 
@@ -213,7 +242,7 @@ public class InventoryView {
             return row;
         });
 
-        card.getChildren().addAll(cardHeader, actionFeedback, table);
+        card.getChildren().addAll(cardHeader, searchRow, actionFeedback, table);
         return card;
     }
 
@@ -280,6 +309,31 @@ public class InventoryView {
             });
             pause.play();
         }
+    }
+
+    private void applySearch(TableView<Product> table, TextField searchField, FilteredList<Product> filteredProducts) {
+        String query = searchField.getText() == null ? "" : searchField.getText().trim().toLowerCase();
+
+        if (query.isEmpty()) {
+            filteredProducts.setPredicate(product -> true);
+            table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
+            return;
+        }
+
+        filteredProducts.setPredicate(product ->
+                product.getName().toLowerCase().contains(query)
+                        || product.getSku().toLowerCase().contains(query)
+        );
+
+        if (filteredProducts.isEmpty()) {
+            table.setPlaceholder(new Label("No products found"));
+        }
+    }
+
+    private void clearSearch(TableView<Product> table, TextField searchField, FilteredList<Product> filteredProducts) {
+        searchField.clear();
+        filteredProducts.setPredicate(product -> true);
+        table.setPlaceholder(new Label("No products yet. Click \"＋ Add New Product\" to get started."));
     }
 
     private void openProductDetails(Product product) {
