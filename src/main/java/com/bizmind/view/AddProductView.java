@@ -1,6 +1,7 @@
 package com.bizmind.view;
 
 import com.bizmind.controller.AddProductController;
+import com.bizmind.model.Product;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -20,6 +21,7 @@ public class AddProductView {
     private final VBox root;
     private final AddProductController controller;
     private final Runnable onBack;
+    private final boolean editMode;
 
     // Form fields (public so AddProductController can access them)
     public TextField nameField, skuField, costPriceField, sellingPriceField, qtyField, minStockField;
@@ -30,8 +32,13 @@ public class AddProductView {
     public Label feedbackLabel;
 
     public AddProductView(Runnable onBackCallback) {
+        this(onBackCallback, null);
+    }
+
+    public AddProductView(Runnable onBackCallback, Product productToEdit) {
         this.onBack = onBackCallback;
         this.controller = new AddProductController(this);
+        this.editMode = productToEdit != null;
 
         root = new VBox(0);
         root.getStyleClass().add("content-area");
@@ -56,6 +63,10 @@ public class AddProductView {
 
         scroll.setContent(content);
         root.getChildren().add(scroll);
+
+        if (editMode) {
+            controller.loadProductIntoForm(productToEdit);
+        }
     }
 
     // ── Page header with back button ──
@@ -71,9 +82,11 @@ public class AddProductView {
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         VBox titleBox = new VBox(3);
-        Label title = new Label("Add New Product");
+        Label title = new Label(editMode ? "Update Product" : "Add New Product");
         title.getStyleClass().add("page-title");
-        Label subtitle = new Label("Fill in the product details below. Fields marked * are required.");
+        Label subtitle = new Label(editMode
+            ? "Edit the selected product fields and click Update Product."
+            : "Fill in the product details below. Fields marked * are required.");
         subtitle.getStyleClass().add("page-subtitle");
         titleBox.getChildren().addAll(title, subtitle);
 
@@ -243,14 +256,20 @@ public class AddProductView {
         HBox btnRow = new HBox(12);
         btnRow.setAlignment(Pos.CENTER_RIGHT);
 
-        Button clearBtn = new Button("Clear Form");
+        Button clearBtn = new Button(editMode ? "Reset Form" : "Clear Form");
         clearBtn.getStyleClass().add("ghost-btn");
         clearBtn.setOnAction(e -> clearForm());
 
-        Button saveBtn = new Button("💾  Save Product");
+        Button saveBtn = new Button(editMode ? "✓  Update Product" : "💾  Save Product");
         saveBtn.getStyleClass().add("primary-btn");
         saveBtn.setMinWidth(160);
-        saveBtn.setOnAction(e -> controller.handleSave());
+        saveBtn.setOnAction(e -> {
+            if (editMode) {
+                controller.handleUpdate();
+            } else {
+                controller.handleSave();
+            }
+        });
 
         btnRow.getChildren().addAll(clearBtn, saveBtn);
         wrapper.getChildren().addAll(feedbackLabel, btnRow);
@@ -341,5 +360,9 @@ public class AddProductView {
     }
 
     public VBox getRoot() { return root; }
+
+    public void goBack() {
+        onBack.run();
+    }
 }
 
