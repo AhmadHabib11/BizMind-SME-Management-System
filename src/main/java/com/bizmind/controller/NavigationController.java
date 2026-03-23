@@ -1,7 +1,10 @@
 package com.bizmind.controller;
 
 import com.bizmind.manager.InventoryManager;
+import com.bizmind.manager.ExpenseManager;
 import com.bizmind.view.InventoryView;
+import com.bizmind.view.ExpenseView;
+import com.bizmind.view.ReportsView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -15,6 +18,8 @@ public class NavigationController {
 
     private final StackPane contentArea;
     private InventoryView inventoryView;
+    private ExpenseView   expenseView;
+    private ReportsView   reportsView;
 
     public NavigationController(StackPane contentArea) {
         this.contentArea = contentArea;
@@ -26,53 +31,72 @@ public class NavigationController {
     }
 
     public void showInventory() {
-        if (inventoryView == null) {
-            inventoryView = new InventoryView(contentArea);
-        }
+        if (inventoryView == null) inventoryView = new InventoryView(contentArea);
         inventoryView.show();
     }
 
-    // ── Dashboard home content ──
+    public void showExpenses() {
+        if (expenseView == null) expenseView = new ExpenseView(contentArea);
+        expenseView.show();
+    }
+
+    public void showReports() {
+        // Always rebuild so charts reflect latest data
+        reportsView = new ReportsView(contentArea);
+        reportsView.show();
+    }
+
+    // ══════════════════════════════════════════════
+    //  Dashboard home
+    // ══════════════════════════════════════════════
     private VBox buildDashboardHome() {
         VBox home = new VBox(28);
         home.setPadding(new Insets(32, 40, 32, 40));
         home.getStyleClass().add("content-area");
 
-        // Welcome header
+        // Header
         VBox headerBox = new VBox(4);
         Label welcome = new Label("Welcome to BizMind");
         welcome.getStyleClass().add("page-title");
-
         Label welcomeSub = new Label("Your SME management dashboard — all your business in one place.");
         welcomeSub.getStyleClass().add("page-subtitle");
-
         headerBox.getChildren().addAll(welcome, welcomeSub);
 
-        // Stats cards row
+        // Stats row
         HBox statsRow = new HBox(20);
         statsRow.setAlignment(Pos.CENTER_LEFT);
 
         VBox productsCard = buildStatCard("📦", "Total Products",
-                String.valueOf(InventoryManager.getInstance().getProductCount()),
-                "stat-card-blue");
+                String.valueOf(InventoryManager.getInstance().getProductCount()), "stat-card-blue");
 
         VBox salesCard = buildStatCard("💰", "Total Sales", "—", "stat-card-green");
-        VBox expenseCard = buildStatCard("📋", "Expenses", "—", "stat-card-orange");
+
+        VBox expenseCard = buildStatCard("📋", "Total Expenses",
+                String.format("PKR %.2f", ExpenseManager.getInstance().getTotalExpenses()),
+                "stat-card-orange");
+
         VBox revenueCard = buildStatCard("📈", "Revenue", "—", "stat-card-purple");
 
-        // Update product count dynamically
+        // Live listeners
         InventoryManager.getInstance().getProducts().addListener(
                 (javafx.collections.ListChangeListener<com.bizmind.model.Product>) c -> {
-                    Label countLabel = (Label) productsCard.lookup(".stat-value");
-                    if (countLabel != null) {
-                        countLabel.setText(String.valueOf(InventoryManager.getInstance().getProductCount()));
-                    }
-                }
-        );
+                    Label lbl = (Label) productsCard.lookup(".stat-value");
+                    if (lbl != null)
+                        lbl.setText(String.valueOf(InventoryManager.getInstance().getProductCount()));
+                });
+
+        ExpenseManager.getInstance().getExpenses().addListener(
+                (javafx.collections.ListChangeListener<com.bizmind.model.Expense>) c -> {
+                    Label lbl = (Label) expenseCard.lookup(".stat-value");
+                    if (lbl != null)
+                        lbl.setText(String.format("PKR %.2f",
+                                ExpenseManager.getInstance().getTotalExpenses()));
+                });
 
         statsRow.getChildren().addAll(productsCard, salesCard, expenseCard, revenueCard);
+        for (var card : statsRow.getChildren()) HBox.setHgrow(card, Priority.ALWAYS);
 
-        // Quick actions card
+        // Quick actions
         VBox actionsCard = new VBox(16);
         actionsCard.getStyleClass().add("card");
         actionsCard.setPadding(new Insets(24, 28, 24, 28));
@@ -83,16 +107,19 @@ public class NavigationController {
         HBox actionsRow = new HBox(16);
         actionsRow.setAlignment(Pos.CENTER_LEFT);
 
-        VBox addProductAction = buildActionTile("📦", "Add Product", "Go to Inventory to add products");
+        VBox addProductAction = buildActionTile("📦", "Add Product",   "Manage inventory");
         addProductAction.setOnMouseClicked(e -> showInventory());
+
+        VBox addExpenseAction = buildActionTile("📋", "Add Expense",   "Record business costs");
+        addExpenseAction.setOnMouseClicked(e -> showExpenses());
+
+        VBox reportsAction = buildActionTile("📈", "View Reports",   "Charts & PDF export");
+        reportsAction.setOnMouseClicked(e -> showReports());
 
         VBox salesAction = buildActionTile("💰", "Record Sale", "Coming in Sprint 2");
         salesAction.getStyleClass().add("action-tile-disabled");
 
-        VBox reportAction = buildActionTile("📈", "View Reports", "Coming in Sprint 2");
-        reportAction.getStyleClass().add("action-tile-disabled");
-
-        actionsRow.getChildren().addAll(addProductAction, salesAction, reportAction);
+        actionsRow.getChildren().addAll(addProductAction, addExpenseAction, reportsAction, salesAction);
         actionsCard.getChildren().addAll(actionsTitle, actionsRow);
 
         home.getChildren().addAll(headerBox, statsRow, actionsCard);
@@ -104,8 +131,6 @@ public class NavigationController {
         card.getStyleClass().addAll("card", "stat-card", styleClass);
         card.setPadding(new Insets(20, 24, 20, 24));
         card.setMinWidth(180);
-        card.setMaxWidth(220);
-        HBox.setHgrow(card, Priority.ALWAYS);
 
         Text iconText = new Text(icon);
         iconText.setStyle("-fx-font-size: 28px;");
@@ -124,7 +149,7 @@ public class NavigationController {
         VBox tile = new VBox(8);
         tile.getStyleClass().add("action-tile");
         tile.setPadding(new Insets(20, 24, 20, 24));
-        tile.setMinWidth(200);
+        tile.setMinWidth(180);
         tile.setAlignment(Pos.CENTER_LEFT);
 
         Text iconText = new Text(icon);
@@ -140,4 +165,3 @@ public class NavigationController {
         return tile;
     }
 }
-

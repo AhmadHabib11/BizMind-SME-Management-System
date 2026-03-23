@@ -351,6 +351,18 @@
     -fx-background-color: #f0f7ff;
 }
 
+.product-table .table-row-cell.low-stock-row {
+    -fx-background-color: #fffbeb;
+}
+
+.product-table .table-row-cell.low-stock-row:hover {
+    -fx-background-color: #fef3c7;
+}
+
+.product-table .table-row-cell.low-stock-row:selected {
+    -fx-background-color: #fde68a;
+}
+
 .product-table .table-cell {
     -fx-text-fill: #334155;
     -fx-font-size: 13px;
@@ -505,6 +517,27 @@
     -fx-border-color: #e2e8f0;
 }
 
+/* ── Danger button ── */
+.danger-btn {
+    -fx-background-color: #ef4444;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-border-color: transparent;
+    -fx-border-width: 1;
+    -fx-padding: 9 20;
+    -fx-cursor: hand;
+}
+.danger-btn:hover {
+    -fx-background-color: #dc2626;
+    -fx-effect: dropshadow(gaussian, rgba(220,38,38,0.28), 6, 0, 0, 2);
+}
+.danger-btn:pressed {
+    -fx-background-color: #b91c1c;
+}
+
 /* ── ComboBox ── */
 .combo-input {
     -fx-background-color: #f8fafc;
@@ -614,6 +647,18 @@
     -fx-text-fill: #94a3b8;
     -fx-font-size: 11.5px;
     -fx-font-style: italic;
+}
+
+.stock-alert-label {
+    -fx-background-color: #fffbeb;
+    -fx-text-fill: #d97706;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-padding: 8 12;
+    -fx-background-radius: 8;
+    -fx-border-color: #fde68a;
+    -fx-border-radius: 8;
+    -fx-border-width: 1;
 }
 
 /* ============================================

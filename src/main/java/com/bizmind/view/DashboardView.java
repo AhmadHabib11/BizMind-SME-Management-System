@@ -15,8 +15,14 @@ import javafx.scene.text.Text;
 public class DashboardView {
 
     private final BorderPane root;
-    private final StackPane contentArea;
+    private final StackPane  contentArea;
     private final NavigationController navController;
+
+    private HBox dashBtn;
+    private HBox inventoryBtn;
+    private HBox expenseBtn;
+    private HBox reportsBtn;
+    private VBox sidebar;
 
     public DashboardView() {
         root = new BorderPane();
@@ -27,22 +33,21 @@ public class DashboardView {
 
         navController = new NavigationController(contentArea);
 
-        VBox sidebar = buildSidebar();
+        sidebar = buildSidebar();
         root.setLeft(sidebar);
         root.setCenter(contentArea);
 
-        // Show dashboard home by default
         navController.showDashboardHome();
     }
 
     private VBox buildSidebar() {
-        VBox sidebar = new VBox();
-        sidebar.getStyleClass().add("sidebar");
-        sidebar.setPrefWidth(240);
-        sidebar.setSpacing(4);
-        sidebar.setPadding(new Insets(0));
+        VBox sb = new VBox();
+        sb.getStyleClass().add("sidebar");
+        sb.setPrefWidth(240);
+        sb.setSpacing(4);
+        sb.setPadding(new Insets(0));
 
-        // ── Brand header ──
+        // ── Brand ──
         VBox brandBox = new VBox(2);
         brandBox.getStyleClass().add("sidebar-brand");
         brandBox.setAlignment(Pos.CENTER_LEFT);
@@ -50,64 +55,72 @@ public class DashboardView {
 
         Label brandName = new Label("BizMind");
         brandName.getStyleClass().add("brand-name");
-
         Label brandSub = new Label("SME Management System");
         brandSub.getStyleClass().add("brand-subtitle");
-
         brandBox.getChildren().addAll(brandName, brandSub);
 
         Separator sep = new Separator();
         sep.getStyleClass().add("sidebar-separator");
 
-        // ── Navigation section ──
+        // ── MAIN MENU ──
         Label navLabel = new Label("MAIN MENU");
         navLabel.getStyleClass().add("sidebar-section-label");
         VBox.setMargin(navLabel, new Insets(16, 24, 8, 24));
 
-        // Dashboard button
-        HBox dashBtn = createNavButton("📊", "Dashboard", true);
+        dashBtn = createNavButton("📊", "Dashboard", true);
+        dashBtn.getStyleClass().add("nav-btn-active");
         dashBtn.setOnMouseClicked(e -> {
-            clearActiveStates(sidebar);
-            dashBtn.getStyleClass().add("nav-btn-active");
+            setActive(dashBtn, sb);
             navController.showDashboardHome();
         });
-        dashBtn.getStyleClass().add("nav-btn-active");
 
-        // Inventory button
-        HBox inventoryBtn = createNavButton("📦", "Inventory", true);
+        inventoryBtn = createNavButton("📦", "Inventory", true);
         inventoryBtn.setOnMouseClicked(e -> {
-            clearActiveStates(sidebar);
-            inventoryBtn.getStyleClass().add("nav-btn-active");
+            setActive(inventoryBtn, sb);
             navController.showInventory();
         });
 
-        // ── Coming Soon section ──
+        expenseBtn = createNavButton("📋", "Expenses", true);
+        expenseBtn.setOnMouseClicked(e -> {
+            setActive(expenseBtn, sb);
+            navController.showExpenses();
+        });
+
+        reportsBtn = createNavButton("📈", "Reports", true);
+        reportsBtn.setOnMouseClicked(e -> {
+            setActive(reportsBtn, sb);
+            navController.showReports();
+        });
+
+        // ── COMING SOON ──
         Label comingSoonLabel = new Label("COMING SOON");
         comingSoonLabel.getStyleClass().add("sidebar-section-label");
         VBox.setMargin(comingSoonLabel, new Insets(24, 24, 8, 24));
 
-        HBox salesBtn = createNavButton("💰", "Sales", false);
-        HBox expenseBtn = createNavButton("📋", "Expenses", false);
-        HBox reportsBtn = createNavButton("📈", "Reports", false);
+        HBox salesBtn     = createNavButton("💰", "Sales",     false);
         HBox analyticsBtn = createNavButton("🧠", "Analytics", false);
 
-        // Spacer to push version to bottom
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
 
-        // ── Version footer ──
-        Label versionLabel = new Label("v1.0.0  •  Sprint 1");
+        Label versionLabel = new Label("v2.0.0  •  Sprint 2");
         versionLabel.getStyleClass().add("sidebar-version");
         VBox.setMargin(versionLabel, new Insets(0, 24, 20, 24));
 
-        sidebar.getChildren().addAll(
+        sb.getChildren().addAll(
                 brandBox, sep,
-                navLabel, dashBtn, inventoryBtn,
-                comingSoonLabel, salesBtn, expenseBtn, reportsBtn, analyticsBtn,
+                navLabel, dashBtn, inventoryBtn, expenseBtn, reportsBtn,
+                comingSoonLabel, salesBtn, analyticsBtn,
                 spacer, versionLabel
         );
+        return sb;
+    }
 
-        return sidebar;
+    private void setActive(HBox chosen, VBox sb) {
+        for (Node node : sb.getChildren()) {
+            node.getStyleClass().remove("nav-btn-active");
+        }
+        chosen.getStyleClass().add("nav-btn-active");
     }
 
     private HBox createNavButton(String icon, String text, boolean enabled) {
@@ -132,18 +145,10 @@ public class DashboardView {
         } else {
             btn.getChildren().addAll(iconText, label);
         }
-
         return btn;
-    }
-
-    private void clearActiveStates(VBox sidebar) {
-        for (Node node : sidebar.getChildren()) {
-            node.getStyleClass().remove("nav-btn-active");
-        }
     }
 
     public BorderPane getRoot() {
         return root;
     }
 }
-
