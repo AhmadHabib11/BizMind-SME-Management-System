@@ -86,6 +86,12 @@ public class DashboardView {
             navController.showExpenses();
         });
 
+        HBox salesBtn = createNavButton("💰", "Sales", true);
+        salesBtn.setOnMouseClicked(e -> {
+            setActive(salesBtn, sb);
+            navController.showSales();
+        });
+
         reportsBtn = createNavButton("📈", "Reports", true);
         reportsBtn.setOnMouseClicked(e -> {
             setActive(reportsBtn, sb);
@@ -97,7 +103,6 @@ public class DashboardView {
         comingSoonLabel.getStyleClass().add("sidebar-section-label");
         VBox.setMargin(comingSoonLabel, new Insets(24, 24, 8, 24));
 
-        HBox salesBtn     = createNavButton("💰", "Sales",     false);
         HBox analyticsBtn = createNavButton("🧠", "Analytics", false);
 
         Region spacer = new Region();
@@ -109,8 +114,8 @@ public class DashboardView {
 
         sb.getChildren().addAll(
                 brandBox, sep,
-                navLabel, dashBtn, inventoryBtn, expenseBtn, reportsBtn,
-                comingSoonLabel, salesBtn, analyticsBtn,
+                navLabel, dashBtn, inventoryBtn, expenseBtn, salesBtn, reportsBtn,
+                comingSoonLabel, analyticsBtn,
                 spacer, versionLabel
         );
         return sb;
