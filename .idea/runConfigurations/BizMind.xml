@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="BizMind" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="com.bizmind.Launcher" />
-    <module name="bizmind-sme" />
+    <module name="yourproject" />
     <option name="VM_PARAMETERS" value="--module-path &quot;${MAVEN_REPOSITORY}/org/openjfx/javafx-controls/21.0.5/javafx-controls-21.0.5-win.jar;${MAVEN_REPOSITORY}/org/openjfx/javafx-graphics/21.0.5/javafx-graphics-21.0.5-win.jar;${MAVEN_REPOSITORY}/org/openjfx/javafx-base/21.0.5/javafx-base-21.0.5-win.jar;${MAVEN_REPOSITORY}/org/openjfx/javafx-fxml/21.0.5/javafx-fxml-21.0.5-win.jar&quot; --add-modules javafx.controls,javafx.fxml" />
     <method v="2">
       <option name="Make" enabled="true" />

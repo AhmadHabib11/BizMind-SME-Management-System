@@ -2,9 +2,12 @@ package com.bizmind.controller;
 
 import com.bizmind.manager.InventoryManager;
 import com.bizmind.manager.ExpenseManager;
+import com.bizmind.manager.SalesManager;
+import com.bizmind.manager.SalesManager;
 import com.bizmind.view.InventoryView;
 import com.bizmind.view.ExpenseView;
 import com.bizmind.view.ReportsView;
+import com.bizmind.view.RecordSaleView;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
@@ -19,6 +22,7 @@ public class NavigationController {
     private final StackPane contentArea;
     private InventoryView inventoryView;
     private ExpenseView   expenseView;
+    private RecordSaleView salesView;
     private ReportsView   reportsView;
 
     public NavigationController(StackPane contentArea) {
@@ -38,6 +42,11 @@ public class NavigationController {
     public void showExpenses() {
         if (expenseView == null) expenseView = new ExpenseView(contentArea);
         expenseView.show();
+    }
+
+    public void showSales() {
+        if (salesView == null) salesView = new RecordSaleView(contentArea);
+        salesView.show();
     }
 
     public void showReports() {
@@ -69,7 +78,8 @@ public class NavigationController {
         VBox productsCard = buildStatCard("📦", "Total Products",
                 String.valueOf(InventoryManager.getInstance().getProductCount()), "stat-card-blue");
 
-        VBox salesCard = buildStatCard("💰", "Total Sales", "—", "stat-card-green");
+        VBox salesCard = buildStatCard("💰", "Total Sales Revenue",
+                String.format("PKR %.2f", SalesManager.getInstance().getTotalSalesRevenue()), "stat-card-green");
 
         VBox expenseCard = buildStatCard("📋", "Total Expenses",
                 String.format("PKR %.2f", ExpenseManager.getInstance().getTotalExpenses()),
@@ -83,6 +93,14 @@ public class NavigationController {
                     Label lbl = (Label) productsCard.lookup(".stat-value");
                     if (lbl != null)
                         lbl.setText(String.valueOf(InventoryManager.getInstance().getProductCount()));
+                });
+
+        SalesManager.getInstance().getSales().addListener(
+                (javafx.collections.ListChangeListener<com.bizmind.model.Sale>) c -> {
+                    Label lbl = (Label) salesCard.lookup(".stat-value");
+                    if (lbl != null)
+                        lbl.setText(String.format("PKR %.2f",
+                                SalesManager.getInstance().getTotalSalesRevenue()));
                 });
 
         ExpenseManager.getInstance().getExpenses().addListener(
@@ -113,13 +131,13 @@ public class NavigationController {
         VBox addExpenseAction = buildActionTile("📋", "Add Expense",   "Record business costs");
         addExpenseAction.setOnMouseClicked(e -> showExpenses());
 
+        VBox recordSaleAction = buildActionTile("💰", "Record Sale", "Track product sales");
+        recordSaleAction.setOnMouseClicked(e -> showSales());
+
         VBox reportsAction = buildActionTile("📈", "View Reports",   "Charts & PDF export");
         reportsAction.setOnMouseClicked(e -> showReports());
 
-        VBox salesAction = buildActionTile("💰", "Record Sale", "Coming in Sprint 2");
-        salesAction.getStyleClass().add("action-tile-disabled");
-
-        actionsRow.getChildren().addAll(addProductAction, addExpenseAction, reportsAction, salesAction);
+        actionsRow.getChildren().addAll(addProductAction, addExpenseAction, recordSaleAction, reportsAction);
         actionsCard.getChildren().addAll(actionsTitle, actionsRow);
 
         home.getChildren().addAll(headerBox, statsRow, actionsCard);
