@@ -7,12 +7,14 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.stream.Collectors;
 
 /**
  * Singleton manager for in-memory sales storage with inventory integration.
  * Covers US-11 (Record Product Sale), US-12 (Automatic Stock Deduction),
- * US-14 (View Sales History), US-15 (Filter Sales by Date Range).
+ * US-14 (View Sales History), US-15 (Filter Sales by Date Range),
+ * US-20 (Total Revenue), US-21 (Net Profit), US-22 (Monthly Summary).
  *
  * Key feature: When a sale is added, automatically deducts stock from InventoryManager.
  * Validates that available stock is sufficient before allowing the sale.
@@ -232,6 +234,45 @@ public class SalesManager {
      */
     public void clearAllSales() {
         sales.clear();
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  US-22: Monthly Summary Calculations
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Get total revenue for a specific month/year (US-22).
+     *
+     * @param yearMonth YearMonth to query
+     * @return Total revenue for that month
+     */
+    public double getMonthlyRevenue(YearMonth yearMonth) {
+        LocalDate startOfMonth = yearMonth.atDay(1);
+        LocalDate endOfMonth = yearMonth.atEndOfMonth();
+        return getRevenueByDateRange(startOfMonth, endOfMonth);
+    }
+
+    /**
+     * Get total expenses for a specific month/year (US-22).
+     *
+     * @param yearMonth YearMonth to query
+     * @return Total expenses for that month
+     */
+    public double getMonthlyExpenses(YearMonth yearMonth) {
+        LocalDate startOfMonth = yearMonth.atDay(1);
+        LocalDate endOfMonth = yearMonth.atEndOfMonth();
+        return ExpenseManager.getInstance().getTotalExpensesByDateRange(startOfMonth, endOfMonth);
+    }
+
+    /**
+     * Get net profit for a specific month/year (US-22).
+     * Net Profit = Monthly Revenue - Monthly Expenses
+     *
+     * @param yearMonth YearMonth to query
+     * @return Net profit for that month
+     */
+    public double getMonthlyNetProfit(YearMonth yearMonth) {
+        return getMonthlyRevenue(yearMonth) - getMonthlyExpenses(yearMonth);
     }
 }
 
