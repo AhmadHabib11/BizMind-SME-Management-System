@@ -114,6 +114,18 @@ public class SalesManager {
     }
 
     /**
+     * Calculate net profit (US-21).
+     * Net Profit = Total Revenue - Total Expenses
+     *
+     * @return Net profit in PKR (can be negative if expenses exceed revenue)
+     */
+    public double getNetProfit() {
+        double totalRevenue = getTotalSalesRevenue();
+        double totalExpenses = ExpenseManager.getInstance().getTotalExpenses();
+        return totalRevenue - totalExpenses;
+    }
+
+    /**
      * Get total revenue for a specific product.
      * Useful for product-level analytics.
      *
