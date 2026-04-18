@@ -85,7 +85,8 @@ public class NavigationController {
                 String.format("PKR %.2f", ExpenseManager.getInstance().getTotalExpenses()),
                 "stat-card-orange");
 
-        VBox revenueCard = buildStatCard("📈", "Revenue", "—", "stat-card-purple");
+        VBox revenueCard = buildStatCard("📈", "Net Profit",
+                String.format("PKR %.2f", SalesManager.getInstance().getNetProfit()), "stat-card-purple");
 
         // Live listeners
         InventoryManager.getInstance().getProducts().addListener(
@@ -101,6 +102,11 @@ public class NavigationController {
                     if (lbl != null)
                         lbl.setText(String.format("PKR %.2f",
                                 SalesManager.getInstance().getTotalSalesRevenue()));
+                    // US-21: Update net profit when sales change
+                    Label profitLbl = (Label) revenueCard.lookup(".stat-value");
+                    if (profitLbl != null)
+                        profitLbl.setText(String.format("PKR %.2f",
+                                SalesManager.getInstance().getNetProfit()));
                 });
 
         ExpenseManager.getInstance().getExpenses().addListener(
@@ -109,6 +115,11 @@ public class NavigationController {
                     if (lbl != null)
                         lbl.setText(String.format("PKR %.2f",
                                 ExpenseManager.getInstance().getTotalExpenses()));
+                    // US-21: Update net profit when expenses change
+                    Label profitLbl = (Label) revenueCard.lookup(".stat-value");
+                    if (profitLbl != null)
+                        profitLbl.setText(String.format("PKR %.2f",
+                                SalesManager.getInstance().getNetProfit()));
                 });
 
         statsRow.getChildren().addAll(productsCard, salesCard, expenseCard, revenueCard);

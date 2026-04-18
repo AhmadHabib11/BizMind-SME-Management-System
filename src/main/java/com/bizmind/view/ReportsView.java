@@ -1,11 +1,13 @@
 package com.bizmind.view;
 
 import com.bizmind.manager.ExpenseManager;
+import com.bizmind.manager.SalesManager;
 import com.bizmind.model.Expense;
 import com.bizmind.report.ExpenseReportGenerator;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
@@ -16,6 +18,7 @@ import com.bizmind.BizMindApp;
 
 import java.io.File;
 import java.time.Month;
+import java.time.YearMonth;
 import java.time.format.TextStyle;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -57,6 +60,7 @@ public class ReportsView {
 
         root.getChildren().addAll(
                 buildPageHeader(),
+                buildMonthlySummary(),
                 buildStatsSummary(),
                 buildChartsRow1(),
                 buildChartsRow2(),
@@ -473,5 +477,108 @@ public class ReportsView {
         label.getStyleClass().add(isError ? "feedback-error" : "feedback-success");
         label.setVisible(true);
         label.setManaged(true);
+    }
+
+    // ══════════════════════════════════════════════
+    //  Monthly Summary Panel (US-22)
+    // ══════════════════════════════════════════════
+    private VBox buildMonthlySummary() {
+        VBox monthlyPanel = new VBox(16);
+        monthlyPanel.getStyleClass().add("card");
+        monthlyPanel.setPadding(new Insets(24, 28, 24, 28));
+
+        // Title
+        Label title = new Label("Monthly Financial Summary");
+        title.getStyleClass().add("card-title");
+
+        // Month/Year Selection Row
+        HBox selectorRow = new HBox(16);
+        selectorRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label monthLabel = new Label("Select Month:");
+        monthLabel.getStyleClass().add("label-default");
+
+        // Month ComboBox with proper month names
+        ComboBox<Month> monthCombo = new ComboBox<>();
+        ObservableList<Month> months = FXCollections.observableArrayList(Month.values());
+        monthCombo.setItems(months);
+        monthCombo.setPrefWidth(120);
+        monthCombo.setValue(YearMonth.now().getMonth());
+
+        // Year ComboBox (dynamically calculated based on current year)
+        ComboBox<Integer> yearCombo = new ComboBox<>();
+        ObservableList<Integer> years = FXCollections.observableArrayList();
+        int currentYear = YearMonth.now().getYear();
+        for (int i = currentYear - 5; i <= currentYear + 1; i++) {
+            years.add(i);
+        }
+        yearCombo.setItems(years);
+        yearCombo.setPrefWidth(100);
+        yearCombo.setValue(currentYear);
+
+        Separator sep = new Separator();
+        sep.setOrientation(Orientation.VERTICAL);
+        selectorRow.getChildren().addAll(monthLabel, monthCombo, sep, yearCombo);
+
+        // Results Panel
+        HBox resultBox = new HBox(20);
+        resultBox.setAlignment(Pos.CENTER_LEFT);
+
+        // Revenue Card
+        VBox revenueCard = new VBox(8);
+        revenueCard.getStyleClass().add("stat-card-blue");
+        revenueCard.setPadding(new Insets(16));
+        revenueCard.setPrefWidth(150);
+        Label revTitle = new Label("Revenue");
+        revTitle.getStyleClass().add("stat-label");
+        Label revValue = new Label("PKR 0.00");
+        revValue.getStyleClass().add("stat-value");
+        revenueCard.getChildren().addAll(revTitle, revValue);
+
+        // Expenses Card
+        VBox expenseCard = new VBox(8);
+        expenseCard.getStyleClass().add("stat-card-orange");
+        expenseCard.setPadding(new Insets(16));
+        expenseCard.setPrefWidth(150);
+        Label expTitle = new Label("Expenses");
+        expTitle.getStyleClass().add("stat-label");
+        Label expValue = new Label("PKR 0.00");
+        expValue.getStyleClass().add("stat-value");
+        expenseCard.getChildren().addAll(expTitle, expValue);
+
+        // Net Profit Card
+        VBox profitCard = new VBox(8);
+        profitCard.getStyleClass().add("stat-card-green");
+        profitCard.setPadding(new Insets(16));
+        profitCard.setPrefWidth(150);
+        Label profitTitle = new Label("Net Profit");
+        profitTitle.getStyleClass().add("stat-label");
+        Label profitValue = new Label("PKR 0.00");
+        profitValue.getStyleClass().add("stat-value");
+        profitCard.getChildren().addAll(profitTitle, profitValue);
+
+        resultBox.getChildren().addAll(revenueCard, expenseCard, profitCard);
+
+        // Update function
+        Runnable updateSummary = () -> {
+            YearMonth yearMonth = YearMonth.of(yearCombo.getValue(), monthCombo.getValue());
+            double revenue = SalesManager.getInstance().getMonthlyRevenue(yearMonth);
+            double expenses = SalesManager.getInstance().getMonthlyExpenses(yearMonth);
+            double profit = SalesManager.getInstance().getMonthlyNetProfit(yearMonth);
+
+            revValue.setText(String.format("PKR %.2f", revenue));
+            expValue.setText(String.format("PKR %.2f", expenses));
+            profitValue.setText(String.format("PKR %.2f", profit));
+        };
+
+        // Trigger update on selection change
+        monthCombo.valueProperty().addListener((obs, old, newVal) -> updateSummary.run());
+        yearCombo.valueProperty().addListener((obs, old, newVal) -> updateSummary.run());
+
+        // Initial update
+        updateSummary.run();
+
+        monthlyPanel.getChildren().addAll(title, selectorRow, resultBox);
+        return monthlyPanel;
     }
 }
