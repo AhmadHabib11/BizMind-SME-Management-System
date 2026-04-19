@@ -715,3 +715,277 @@
 .detail-value-green    { -fx-text-fill: #16a34a; }
 .detail-value-orange   { -fx-text-fill: #d97706; }
 .detail-value-red      { -fx-text-fill: #ef4444; }
+
+
+/* ============================================
+   AUTH SCREEN
+   ============================================ */
+
+.auth-root {
+    -fx-background-color: linear-gradient(to bottom right, #0f172a, #1e3a5f);
+}
+
+.auth-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.35), 32, 0, 0, 8);
+}
+
+.auth-brand-name {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1e293b;
+}
+
+.auth-brand-sub {
+    -fx-font-size: 13px;
+    -fx-text-fill: #64748b;
+}
+
+.auth-tabs .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.auth-tabs .tab {
+    -fx-background-color: transparent;
+    -fx-padding: 8 20 8 20;
+}
+
+.auth-tabs .tab:selected {
+    -fx-background-color: #eff6ff;
+    -fx-background-radius: 8 8 0 0;
+}
+
+.auth-tabs .tab .tab-label {
+    -fx-text-fill: #64748b;
+    -fx-font-size: 14px;
+    -fx-font-weight: 600;
+}
+
+.auth-tabs .tab:selected .tab-label {
+    -fx-text-fill: #2563eb;
+}
+
+/* ============================================
+   HOME SCREENS (Owner / Worker)
+   ============================================ */
+
+.home-root {
+    -fx-background-color: #f0f2f5;
+}
+
+.home-topbar {
+    -fx-background-color: #1e293b;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 6, 0, 0, 2);
+}
+
+.home-topbar-brand {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+}
+
+.home-topbar-user {
+    -fx-font-size: 13px;
+    -fx-text-fill: #94a3b8;
+    -fx-padding: 0 12 0 0;
+}
+
+.home-content {
+    -fx-background-color: #f0f2f5;
+}
+
+/* ── Business cards ── */
+.business-grid {
+    -fx-background-color: transparent;
+}
+
+.business-card {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 12;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 12, 0, 0, 3);
+    -fx-cursor: hand;
+}
+
+.business-card:hover {
+    -fx-effect: dropshadow(gaussian, rgba(37,99,235,0.18), 18, 0, 0, 5);
+}
+
+.business-card-name {
+    -fx-font-size: 17px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #1e293b;
+}
+
+.join-code-badge {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2563eb;
+    -fx-background-color: #eff6ff;
+    -fx-background-radius: 6;
+    -fx-padding: 4 12 4 12;
+    -fx-font-family: "Consolas", "Courier New", monospace;
+}
+
+.role-badge {
+    -fx-font-size: 12px;
+    -fx-font-weight: 600;
+    -fx-text-fill: #ffffff;
+    -fx-background-color: #2563eb;
+    -fx-background-radius: 20;
+    -fx-padding: 3 10 3 10;
+}
+
+/* ── Request rows ── */
+.request-row {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 8, 0, 0, 2);
+}
+
+/* ── Sidebar footer buttons ── */
+.sidebar-footer-btn {
+    -fx-background-color: rgba(255,255,255,0.08);
+    -fx-background-radius: 8;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+    -fx-padding: 8 16 8 16;
+    -fx-cursor: hand;
+    -fx-border-color: transparent;
+}
+
+.sidebar-footer-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.14);
+    -fx-text-fill: #e2e8f0;
+}
+
+.sidebar-logout-btn {
+    -fx-text-fill: #f87171;
+}
+
+.sidebar-logout-btn:hover {
+    -fx-text-fill: #fca5a5;
+    -fx-background-color: rgba(239,68,68,0.12);
+}
+
+
+/* ============================================
+   ANALYTICS CHATBOT
+   ============================================ */
+
+.analytics-header {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e2e8f0;
+    -fx-border-width: 0 0 1 0;
+}
+
+.analytics-scroll {
+    -fx-background-color: #f8fafc;
+    -fx-background: #f8fafc;
+    -fx-border-color: transparent;
+}
+
+.analytics-scroll .viewport {
+    -fx-background-color: #f8fafc;
+}
+
+.analytics-input-bar {
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e2e8f0;
+    -fx-border-width: 1 0 0 0;
+}
+
+.analytics-input {
+    -fx-background-color: #f1f5f9;
+    -fx-background-radius: 22;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 22;
+    -fx-border-width: 1.5;
+    -fx-padding: 10 16 10 16;
+    -fx-font-size: 14px;
+    -fx-text-fill: #1e293b;
+    -fx-prompt-text-fill: #94a3b8;
+}
+
+.analytics-input:focused {
+    -fx-border-color: #3b82f6;
+    -fx-background-color: #ffffff;
+}
+
+/* ── Bot bubble ── */
+.bot-avatar {
+    -fx-font-size: 22px;
+    -fx-padding: 4 0 0 0;
+    -fx-min-width: 36;
+    -fx-alignment: center;
+}
+
+.bot-bubble {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 4 16 16 16;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 4 16 16 16;
+    -fx-border-width: 1;
+    -fx-padding: 14 18 14 18;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.06), 6, 0, 0, 2);
+}
+
+.bot-bubble .bubble-text {
+    -fx-font-size: 13.5px;
+    -fx-fill: #1e293b;
+    -fx-line-spacing: 3;
+}
+
+/* ── User bubble ── */
+.user-bubble {
+    -fx-background-color: #2563eb;
+    -fx-background-radius: 16 4 16 16;
+    -fx-padding: 12 18 12 18;
+}
+
+.user-bubble .bubble-text {
+    -fx-font-size: 13.5px;
+    -fx-fill: #ffffff;
+}
+
+/* ── Typing indicator ── */
+.typing-indicator {
+    -fx-font-size: 13px;
+    -fx-text-fill: #64748b;
+    -fx-font-style: italic;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 4 16 16 16;
+    -fx-border-color: #e2e8f0;
+    -fx-border-radius: 4 16 16 16;
+    -fx-border-width: 1;
+    -fx-padding: 12 18 12 18;
+}
+
+/* ── Quick-ask chips ── */
+.chips-scroll {
+    -fx-background-color: #f8fafc;
+    -fx-background: #f8fafc;
+    -fx-border-color: transparent;
+}
+
+.chips-scroll .viewport {
+    -fx-background-color: #f8fafc;
+}
+
+.chip-btn {
+    -fx-background-color: #eff6ff;
+    -fx-background-radius: 20;
+    -fx-border-color: #bfdbfe;
+    -fx-border-radius: 20;
+    -fx-border-width: 1;
+    -fx-text-fill: #1d4ed8;
+    -fx-font-size: 12.5px;
+    -fx-font-weight: 600;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
+}
+
+.chip-btn:hover {
+    -fx-background-color: #dbeafe;
+    -fx-border-color: #93c5fd;
+}

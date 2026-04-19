@@ -68,7 +68,12 @@ public class AddProductController {
                 result.minStock(),
                 result.imagePath()
         );
-        InventoryManager.getInstance().addProduct(product);
+        try {
+            InventoryManager.getInstance().addProduct(product);
+        } catch (Exception ex) {
+            showFeedback(view.feedbackLabel, "✗ Save failed: " + ex.getMessage(), true);
+            return;
+        }
 
         showFeedback(view.feedbackLabel, "✓ Product \"" + result.name() + "\" saved successfully!", false);
 
@@ -101,6 +106,13 @@ public class AddProductController {
         editingProduct.setQuantity(result.quantity());
         editingProduct.setMinimumStock(result.minStock());
         editingProduct.setImagePath(result.imagePath());
+
+        try {
+            InventoryManager.getInstance().updateProduct(editingProduct);
+        } catch (Exception ex) {
+            showFeedback(view.feedbackLabel, "✗ Update failed: " + ex.getMessage(), true);
+            return;
+        }
 
         showFeedback(view.feedbackLabel, "✓ Product updated successfully!", false);
 

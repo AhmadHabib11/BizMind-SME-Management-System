@@ -1,12 +1,11 @@
 package com.bizmind.model;
 
 import javafx.beans.property.*;
+import java.util.UUID;
 
-/**
- * Product model with JavaFX properties for TableView binding.
- * Extended for Sprint 1 with full SME-relevant fields.
- */
 public class Product {
+
+    private UUID dbId; // primary key in Supabase
 
     private final StringProperty name;
     private final StringProperty sku;
@@ -76,4 +75,8 @@ public class Product {
     public StringProperty imagePathProperty() { return imagePath; }
     public String getImagePath() { return imagePath.get(); }
     public void setImagePath(String v) { imagePath.set(v); }
+
+    // --- DB Id ---
+    public UUID getDbId()       { return dbId; }
+    public void setDbId(UUID v) { dbId = v; }
 }

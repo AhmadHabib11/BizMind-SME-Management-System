@@ -1,278 +1,201 @@
 package com.bizmind.manager;
 
+import com.bizmind.db.DatabaseManager;
 import com.bizmind.model.Product;
 import com.bizmind.model.Sale;
+import com.bizmind.session.SessionManager;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Singleton manager for in-memory sales storage with inventory integration.
- * Covers US-11 (Record Product Sale), US-12 (Automatic Stock Deduction),
- * US-14 (View Sales History), US-15 (Filter Sales by Date Range),
- * US-20 (Total Revenue), US-21 (Net Profit), US-22 (Monthly Summary).
- *
- * Key feature: When a sale is added, automatically deducts stock from InventoryManager.
- * Validates that available stock is sufficient before allowing the sale.
- */
 public class SalesManager {
 
     private static SalesManager instance;
+    private final ObservableList<Sale> sales = FXCollections.observableArrayList();
 
-    private final ObservableList<Sale> sales;
-
-    private SalesManager() {
-        sales = FXCollections.observableArrayList();
-    }
+    private SalesManager() {}
 
     public static SalesManager getInstance() {
-        if (instance == null) {
-            instance = new SalesManager();
-        }
+        if (instance == null) instance = new SalesManager();
         return instance;
     }
 
-    /**
-     * Get all sales as an observable list for TableView binding.
-     * @return ObservableList<Sale> of all sales
-     */
-    public ObservableList<Sale> getSales() {
-        return sales;
+    public ObservableList<Sale> getSales() { return sales; }
+
+    public int getSaleCount() { return sales.size(); }
+
+    /** Reload all sales for the current business from Supabase. */
+    public void refresh() {
+        sales.clear();
+        Sale.resetIdCounter();
+        UUID businessId = currentBusinessId();
+        if (businessId == null) return;
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT s.id, p.name AS product_name, p.sku AS product_sku, " +
+                "si.quantity, si.unit_price, s.notes, s.sale_date " +
+                "FROM sales s " +
+                "JOIN sale_items si ON si.sale_id = s.id " +
+                "JOIN products p ON p.id = si.product_id " +
+                "WHERE s.business_id = ? ORDER BY s.sale_date DESC");
+            ps.setObject(1, businessId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Timestamp ts = rs.getTimestamp("sale_date");
+                LocalDate date = ts != null ? ts.toLocalDateTime().toLocalDate() : LocalDate.now();
+                Sale sale = new Sale(
+                    rs.getString("product_name"),
+                    rs.getString("product_sku"),
+                    rs.getInt("quantity"),
+                    rs.getDouble("unit_price"),
+                    date,
+                    "",
+                    rs.getString("notes") != null ? rs.getString("notes") : ""
+                );
+                sale.setDbId((UUID) rs.getObject("id"));
+                sales.add(sale);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load sales: " + e.getMessage(), e);
+        }
     }
 
     /**
-     * Add a new sale and automatically deduct stock from inventory.
-     * US-11: Record the sale
-     * US-12: Automatically deduct from product quantity
-     *
-     * @param sale Sale object to add
-     * @throws IllegalArgumentException if product not found or insufficient stock
+     * Record a sale: validates stock, inserts to DB (sales + sale_items),
+     * updates product quantity in DB and in-memory.
      */
-    public void addSale(Sale sale) throws IllegalArgumentException {
-        // Find the product in inventory by matching name or SKU
-        InventoryManager invMgr = InventoryManager.getInstance();
-        Product product = findProductByNameOrSku(sale.getProductName(), sale.getProductSku());
+    public void addSale(Sale sale) {
+        UUID businessId = currentBusinessId();
+        UUID userId     = SessionManager.getInstance().getCurrentUser() != null
+                          ? SessionManager.getInstance().getCurrentUser().getId() : null;
+        if (businessId == null) throw new RuntimeException("No active business session.");
 
-        if (product == null) {
+        InventoryManager invMgr = InventoryManager.getInstance();
+        Product product = invMgr.getProducts().stream()
+            .filter(p -> p.getName().equalsIgnoreCase(sale.getProductName())
+                      || p.getSku().equalsIgnoreCase(sale.getProductSku()))
+            .findFirst().orElse(null);
+
+        if (product == null)
             throw new IllegalArgumentException("Product \"" + sale.getProductName() + "\" not found in inventory.");
-        }
 
-        // US-12: Check available stock before deducting
-        int availableStock = product.getQuantity();
-        int saleQuantity = sale.getQuantity();
-
-        if (saleQuantity > availableStock) {
+        if (sale.getQuantity() > product.getQuantity())
             throw new IllegalArgumentException(
-                    "Insufficient stock! Available: " + availableStock + ", Requested: " + saleQuantity
-            );
+                "Insufficient stock! Available: " + product.getQuantity() + ", Requested: " + sale.getQuantity());
+
+        try {
+            Connection conn = DatabaseManager.getInstance().getConnection();
+
+            // Insert sale record
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO sales (business_id, recorded_by, total_amount, notes, sale_date) " +
+                "VALUES (?, ?, ?, ?, ?) RETURNING id");
+            ps.setObject(1, businessId);
+            ps.setObject(2, userId);
+            ps.setDouble(3, sale.getTotalPrice());
+            ps.setString(4, sale.getNotes());
+            ps.setTimestamp(5, Timestamp.valueOf(sale.getDate().atStartOfDay()));
+            ResultSet rs = ps.executeQuery();
+            UUID saleId = null;
+            if (rs.next()) saleId = (UUID) rs.getObject(1);
+            sale.setDbId(saleId);
+
+            // Insert sale_item
+            PreparedStatement ps2 = conn.prepareStatement(
+                "INSERT INTO sale_items (sale_id, product_id, quantity, unit_price, total) VALUES (?, ?, ?, ?, ?)");
+            ps2.setObject(1, saleId);
+            ps2.setObject(2, product.getDbId());
+            ps2.setInt(3, sale.getQuantity());
+            ps2.setDouble(4, sale.getUnitPrice());
+            ps2.setDouble(5, sale.getTotalPrice());
+            ps2.executeUpdate();
+
+            // Deduct stock
+            int newQty = product.getQuantity() - sale.getQuantity();
+            invMgr.updateQuantityInDB(product, newQty);
+
+            sales.add(0, sale);
+
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to record sale: " + e.getMessage(), e);
         }
-
-        // Deduct from inventory (US-12: Automatic Stock Deduction After Sale)
-        int newQuantity = availableStock - saleQuantity;
-        product.setQuantity(newQuantity);
-
-        // Add sale to the list
-        sales.add(sale);
     }
 
-    /**
-     * Find product by name or SKU from InventoryManager.
-     * Helper method for addSale validation.
-     *
-     * @param productName Name of product
-     * @param productSku SKU of product
-     * @return Product if found, null otherwise
-     */
-    private Product findProductByNameOrSku(String productName, String productSku) {
-        InventoryManager invMgr = InventoryManager.getInstance();
-        return invMgr.getProducts().stream()
-                .filter(p -> p.getName().equalsIgnoreCase(productName) || p.getSku().equalsIgnoreCase(productSku))
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Get total number of sales recorded.
-     * @return Total sales count
-     */
-    public int getSaleCount() {
-        return sales.size();
-    }
-
-    /**
-     * Get total revenue from all sales (sum of all sale totals).
-     * Used for dashboard stats and reports.
-     *
-     * @return Total revenue in PKR
-     */
     public double getTotalSalesRevenue() {
-        return sales.stream()
-                .mapToDouble(Sale::getTotalPrice)
-                .sum();
+        return sales.stream().mapToDouble(Sale::getTotalPrice).sum();
     }
 
-    /**
-     * Calculate net profit (US-21).
-     * Net Profit = Total Revenue - Total Expenses
-     *
-     * @return Net profit in PKR (can be negative if expenses exceed revenue)
-     */
     public double getNetProfit() {
-        double totalRevenue = getTotalSalesRevenue();
-        double totalExpenses = ExpenseManager.getInstance().getTotalExpenses();
-        return totalRevenue - totalExpenses;
+        return getTotalSalesRevenue() - ExpenseManager.getInstance().getTotalExpenses();
     }
 
-    /**
-     * Get total revenue for a specific product.
-     * Useful for product-level analytics.
-     *
-     * @param productName Name of product
-     * @return Total revenue for that product
-     */
     public double getRevenueByProduct(String productName) {
         return sales.stream()
-                .filter(s -> s.getProductName().equalsIgnoreCase(productName))
-                .mapToDouble(Sale::getTotalPrice)
-                .sum();
+            .filter(s -> s.getProductName().equalsIgnoreCase(productName))
+            .mapToDouble(Sale::getTotalPrice).sum();
     }
 
-    /**
-     * Get all sales within a specific date range.
-     * US-15: Filter Sales by Date Range
-     *
-     * @param fromDate Start date (inclusive)
-     * @param toDate End date (inclusive)
-     * @return FilteredList of sales within the date range
-     */
-    public FilteredList<Sale> getSalesByDateRange(LocalDate fromDate, LocalDate toDate) {
-        FilteredList<Sale> filteredSales = new FilteredList<>(sales);
-        filteredSales.setPredicate(sale -> {
-            LocalDate saleDate = sale.getDate();
-            return !saleDate.isBefore(fromDate) && !saleDate.isAfter(toDate);
-        });
-        return filteredSales;
+    public FilteredList<Sale> getSalesByDateRange(LocalDate from, LocalDate to) {
+        FilteredList<Sale> f = new FilteredList<>(sales);
+        f.setPredicate(s -> !s.getDate().isBefore(from) && !s.getDate().isAfter(to));
+        return f;
     }
 
-    /**
-     * Get total revenue for a specific date range.
-     * Used for period-based financial analysis.
-     *
-     * @param fromDate Start date (inclusive)
-     * @param toDate End date (inclusive)
-     * @return Total revenue for the date range
-     */
-    public double getRevenueByDateRange(LocalDate fromDate, LocalDate toDate) {
-        return getSalesByDateRange(fromDate, toDate).stream()
-                .mapToDouble(Sale::getTotalPrice)
-                .sum();
+    public double getRevenueByDateRange(LocalDate from, LocalDate to) {
+        return getSalesByDateRange(from, to).stream().mapToDouble(Sale::getTotalPrice).sum();
     }
 
-    /**
-     * Get sales count for a specific date range.
-     *
-     * @param fromDate Start date (inclusive)
-     * @param toDate End date (inclusive)
-     * @return Number of sales in date range
-     */
-    public int getSalesCountByDateRange(LocalDate fromDate, LocalDate toDate) {
+    public int getSalesCountByDateRange(LocalDate from, LocalDate to) {
         return (int) sales.stream()
-                .filter(s -> {
-                    LocalDate saleDate = s.getDate();
-                    return !saleDate.isBefore(fromDate) && !saleDate.isAfter(toDate);
-                })
-                .count();
+            .filter(s -> !s.getDate().isBefore(from) && !s.getDate().isAfter(to)).count();
     }
 
-    /**
-     * Get sales filtered by product name.
-     *
-     * @param productName Name of product
-     * @return FilteredList of sales for that product
-     */
     public FilteredList<Sale> getSalesByProduct(String productName) {
-        FilteredList<Sale> filteredSales = new FilteredList<>(sales);
-        filteredSales.setPredicate(sale -> sale.getProductName().equalsIgnoreCase(productName));
-        return filteredSales;
+        FilteredList<Sale> f = new FilteredList<>(sales);
+        f.setPredicate(s -> s.getProductName().equalsIgnoreCase(productName));
+        return f;
     }
 
-    /**
-     * Get the best-selling product by total quantity sold.
-     * Future use for US-24 (Best-Selling Product Identification).
-     *
-     * @return Product name of best seller, or empty string if no sales
-     */
     public String getBestSellingProduct() {
         return sales.stream()
-                .collect(Collectors.groupingBy(Sale::getProductName, Collectors.summingInt(Sale::getQuantity)))
-                .entrySet().stream()
-                .max((e1, e2) -> Integer.compare(e1.getValue(), e2.getValue()))
-                .map(e -> e.getKey())
-                .orElse("");
+            .collect(Collectors.groupingBy(Sale::getProductName, Collectors.summingInt(Sale::getQuantity)))
+            .entrySet().stream()
+            .max((a, b) -> Integer.compare(a.getValue(), b.getValue()))
+            .map(e -> e.getKey()).orElse("");
     }
 
-    /**
-     * Get sales count (quantity) for a specific product.
-     *
-     * @param productName Name of product
-     * @return Total units sold for that product
-     */
     public int getQuantitySoldByProduct(String productName) {
-        return sales.stream()
-                .filter(s -> s.getProductName().equalsIgnoreCase(productName))
-                .mapToInt(Sale::getQuantity)
-                .sum();
+        return sales.stream().filter(s -> s.getProductName().equalsIgnoreCase(productName))
+            .mapToInt(Sale::getQuantity).sum();
     }
 
-    /**
-     * Clear all sales (useful for testing or reset).
-     * Note: This does NOT restore inventory, so use with caution.
-     */
-    public void clearAllSales() {
-        sales.clear();
+    public double getMonthlyRevenue(YearMonth ym) {
+        return getRevenueByDateRange(ym.atDay(1), ym.atEndOfMonth());
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  US-22: Monthly Summary Calculations
-    // ═══════════════════════════════════════════════════════════════
-
-    /**
-     * Get total revenue for a specific month/year (US-22).
-     *
-     * @param yearMonth YearMonth to query
-     * @return Total revenue for that month
-     */
-    public double getMonthlyRevenue(YearMonth yearMonth) {
-        LocalDate startOfMonth = yearMonth.atDay(1);
-        LocalDate endOfMonth = yearMonth.atEndOfMonth();
-        return getRevenueByDateRange(startOfMonth, endOfMonth);
+    public double getMonthlyExpenses(YearMonth ym) {
+        return ExpenseManager.getInstance().getTotalExpensesByDateRange(ym.atDay(1), ym.atEndOfMonth());
     }
 
-    /**
-     * Get total expenses for a specific month/year (US-22).
-     *
-     * @param yearMonth YearMonth to query
-     * @return Total expenses for that month
-     */
-    public double getMonthlyExpenses(YearMonth yearMonth) {
-        LocalDate startOfMonth = yearMonth.atDay(1);
-        LocalDate endOfMonth = yearMonth.atEndOfMonth();
-        return ExpenseManager.getInstance().getTotalExpensesByDateRange(startOfMonth, endOfMonth);
+    public double getMonthlyNetProfit(YearMonth ym) {
+        return getMonthlyRevenue(ym) - getMonthlyExpenses(ym);
     }
 
-    /**
-     * Get net profit for a specific month/year (US-22).
-     * Net Profit = Monthly Revenue - Monthly Expenses
-     *
-     * @param yearMonth YearMonth to query
-     * @return Net profit for that month
-     */
-    public double getMonthlyNetProfit(YearMonth yearMonth) {
-        return getMonthlyRevenue(yearMonth) - getMonthlyExpenses(yearMonth);
+    public void clearAllSales() { sales.clear(); }
+
+    public void clear() { sales.clear(); }
+
+    private UUID currentBusinessId() {
+        var b = SessionManager.getInstance().getCurrentBusiness();
+        return b == null ? null : b.getId();
     }
 }
-

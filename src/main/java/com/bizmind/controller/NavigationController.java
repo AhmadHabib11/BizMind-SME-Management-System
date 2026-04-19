@@ -3,7 +3,7 @@ package com.bizmind.controller;
 import com.bizmind.manager.InventoryManager;
 import com.bizmind.manager.ExpenseManager;
 import com.bizmind.manager.SalesManager;
-import com.bizmind.manager.SalesManager;
+import com.bizmind.view.AnalyticsView;
 import com.bizmind.view.InventoryView;
 import com.bizmind.view.ExpenseView;
 import com.bizmind.view.ReportsView;
@@ -50,9 +50,13 @@ public class NavigationController {
     }
 
     public void showReports() {
-        // Always rebuild so charts reflect latest data
         reportsView = new ReportsView(contentArea);
         reportsView.show();
+    }
+
+    public void showAnalytics() {
+        AnalyticsView analyticsView = new AnalyticsView(contentArea);
+        analyticsView.show();
     }
 
     // ══════════════════════════════════════════════
