@@ -2,13 +2,11 @@ package com.bizmind.model;
 
 import javafx.beans.property.*;
 import java.time.LocalDate;
+import java.util.UUID;
 
-/**
- * Sale model with JavaFX properties for TableView binding.
- * Covers US-11 (Record Product Sale), US-14 (View Sales History), US-15 (Filter Sales).
- * Mirrors Expense.java structure for consistency.
- */
 public class Sale {
+
+    private UUID dbId; // primary key in Supabase
 
     private final IntegerProperty id;
     private final StringProperty productName;
@@ -112,5 +110,9 @@ public class Sale {
     public static void resetIdCounter() {
         nextId = 1;
     }
+
+    // --- DB Id ---
+    public UUID getDbId()       { return dbId; }
+    public void setDbId(UUID v) { dbId = v; }
 }
 

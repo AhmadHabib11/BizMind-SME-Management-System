@@ -1,36 +1,28 @@
 package com.bizmind.view;
 
+import com.bizmind.BizMindApp;
 import com.bizmind.controller.NavigationController;
+import com.bizmind.session.SessionManager;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
 
-/**
- * Main dashboard layout with persistent sidebar and swappable center content.
- */
 public class DashboardView {
 
     private final BorderPane root;
     private final StackPane  contentArea;
     private final NavigationController navController;
-
-    private HBox dashBtn;
-    private HBox inventoryBtn;
-    private HBox expenseBtn;
-    private HBox reportsBtn;
     private VBox sidebar;
 
     public DashboardView() {
-        root = new BorderPane();
-        root.getStyleClass().add("root-pane");
-
+        root        = new BorderPane();
         contentArea = new StackPane();
         contentArea.getStyleClass().add("content-area");
-
         navController = new NavigationController(contentArea);
 
         sidebar = buildSidebar();
@@ -41,6 +33,9 @@ public class DashboardView {
     }
 
     private VBox buildSidebar() {
+        String role = SessionManager.getInstance().getCurrentRole();
+        boolean isOwner = "owner".equals(role);
+
         VBox sb = new VBox();
         sb.getStyleClass().add("sidebar");
         sb.setPrefWidth(240);
@@ -53,78 +48,112 @@ public class DashboardView {
         brandBox.setAlignment(Pos.CENTER_LEFT);
         brandBox.setPadding(new Insets(28, 24, 24, 24));
 
-        Label brandName = new Label("BizMind");
+        String businessName = SessionManager.getInstance().getCurrentBusiness() != null
+            ? SessionManager.getInstance().getCurrentBusiness().getName()
+            : "BizMind";
+
+        Label brandName = new Label(businessName);
         brandName.getStyleClass().add("brand-name");
-        Label brandSub = new Label("SME Management System");
+        brandName.setWrapText(true);
+        Label brandSub = new Label(formatRole(role));
         brandSub.getStyleClass().add("brand-subtitle");
         brandBox.getChildren().addAll(brandName, brandSub);
 
         Separator sep = new Separator();
         sep.getStyleClass().add("sidebar-separator");
 
-        // ── MAIN MENU ──
         Label navLabel = new Label("MAIN MENU");
         navLabel.getStyleClass().add("sidebar-section-label");
         VBox.setMargin(navLabel, new Insets(16, 24, 8, 24));
 
-        dashBtn = createNavButton("📊", "Dashboard", true);
+        // ── Dashboard (all roles) ──
+        HBox dashBtn = createNavButton("📊", "Dashboard", true);
         dashBtn.getStyleClass().add("nav-btn-active");
-        dashBtn.setOnMouseClicked(e -> {
-            setActive(dashBtn, sb);
-            navController.showDashboardHome();
-        });
+        dashBtn.setOnMouseClicked(e -> { setActive(dashBtn, sb); navController.showDashboardHome(); });
 
-        inventoryBtn = createNavButton("📦", "Inventory", true);
-        inventoryBtn.setOnMouseClicked(e -> {
-            setActive(inventoryBtn, sb);
-            navController.showInventory();
-        });
+        sb.getChildren().addAll(brandBox, sep, navLabel, dashBtn);
 
-        expenseBtn = createNavButton("📋", "Expenses", true);
-        expenseBtn.setOnMouseClicked(e -> {
-            setActive(expenseBtn, sb);
-            navController.showExpenses();
-        });
+        // ── Inventory (owner, store_manager) ──
+        if (isOwner || "store_manager".equals(role)) {
+            HBox inventoryBtn = createNavButton("📦", "Inventory", true);
+            inventoryBtn.setOnMouseClicked(e -> { setActive(inventoryBtn, sb); navController.showInventory(); });
+            sb.getChildren().add(inventoryBtn);
+        }
 
-        HBox salesBtn = createNavButton("💰", "Sales", true);
-        salesBtn.setOnMouseClicked(e -> {
-            setActive(salesBtn, sb);
-            navController.showSales();
-        });
+        // ── Expenses (owner, store_manager, accountant) ──
+        if (isOwner || "store_manager".equals(role) || "accountant".equals(role)) {
+            HBox expenseBtn = createNavButton("📋", "Expenses", true);
+            expenseBtn.setOnMouseClicked(e -> { setActive(expenseBtn, sb); navController.showExpenses(); });
+            sb.getChildren().add(expenseBtn);
+        }
 
-        reportsBtn = createNavButton("📈", "Reports", true);
-        reportsBtn.setOnMouseClicked(e -> {
-            setActive(reportsBtn, sb);
-            navController.showReports();
-        });
+        // ── Sales (owner, store_manager, staff) ──
+        if (isOwner || "store_manager".equals(role) || "staff".equals(role)) {
+            HBox salesBtn = createNavButton("💰", "Sales", true);
+            salesBtn.setOnMouseClicked(e -> { setActive(salesBtn, sb); navController.showSales(); });
+            sb.getChildren().add(salesBtn);
+        }
 
-        // ── COMING SOON ──
-        Label comingSoonLabel = new Label("COMING SOON");
-        comingSoonLabel.getStyleClass().add("sidebar-section-label");
-        VBox.setMargin(comingSoonLabel, new Insets(24, 24, 8, 24));
+        // ── Reports (owner, store_manager, accountant) ──
+        if (isOwner || "store_manager".equals(role) || "accountant".equals(role)) {
+            HBox reportsBtn = createNavButton("📈", "Reports", true);
+            reportsBtn.setOnMouseClicked(e -> { setActive(reportsBtn, sb); navController.showReports(); });
+            sb.getChildren().add(reportsBtn);
+        }
 
-        HBox analyticsBtn = createNavButton("🧠", "Analytics", false);
+        // ── Analytics (owner only — live, others see Coming Soon) ──
+        Label comingSoon = new Label("ANALYTICS");
+        comingSoon.getStyleClass().add("sidebar-section-label");
+        VBox.setMargin(comingSoon, new Insets(24, 24, 8, 24));
+        sb.getChildren().add(comingSoon);
 
+        if (isOwner) {
+            HBox analyticsBtn = createNavButton("🧠", "Analytics", true);
+            analyticsBtn.setOnMouseClicked(e -> { setActive(analyticsBtn, sb); navController.showAnalytics(); });
+            sb.getChildren().add(analyticsBtn);
+        } else {
+            HBox analyticsBtn = createNavButton("🧠", "Analytics", false);
+            sb.getChildren().add(analyticsBtn);
+        }
+
+        // ── Spacer + footer ──
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
+        sb.getChildren().add(spacer);
 
-        Label versionLabel = new Label("v2.0.0  •  Sprint 2");
-        versionLabel.getStyleClass().add("sidebar-version");
-        VBox.setMargin(versionLabel, new Insets(0, 24, 20, 24));
+        // Back to businesses
+        Button backBtn = new Button("← My Businesses");
+        backBtn.getStyleClass().add("sidebar-footer-btn");
+        backBtn.setMaxWidth(Double.MAX_VALUE);
+        backBtn.setOnAction(e -> {
+            if ("owner".equals(role)) BizMindApp.showOwnerHome();
+            else                      BizMindApp.showWorkerHome();
+        });
+        VBox.setMargin(backBtn, new Insets(0, 16, 4, 16));
 
-        sb.getChildren().addAll(
-                brandBox, sep,
-                navLabel, dashBtn, inventoryBtn, expenseBtn, salesBtn, reportsBtn,
-                comingSoonLabel, analyticsBtn,
-                spacer, versionLabel
-        );
+        Button logoutBtn = new Button("Logout");
+        logoutBtn.getStyleClass().addAll("sidebar-footer-btn", "sidebar-logout-btn");
+        logoutBtn.setMaxWidth(Double.MAX_VALUE);
+        logoutBtn.setOnAction(e -> BizMindApp.logout());
+        VBox.setMargin(logoutBtn, new Insets(0, 16, 20, 16));
+
+        sb.getChildren().addAll(backBtn, logoutBtn);
         return sb;
     }
 
+    private String formatRole(String role) {
+        if (role == null) return "SME Management System";
+        return switch (role) {
+            case "owner"         -> "Owner";
+            case "store_manager" -> "Store Manager";
+            case "accountant"    -> "Accountant";
+            case "staff"         -> "Staff";
+            default              -> role;
+        };
+    }
+
     private void setActive(HBox chosen, VBox sb) {
-        for (Node node : sb.getChildren()) {
-            node.getStyleClass().remove("nav-btn-active");
-        }
+        for (Node node : sb.getChildren()) node.getStyleClass().remove("nav-btn-active");
         chosen.getStyleClass().add("nav-btn-active");
     }
 
@@ -136,7 +165,6 @@ public class DashboardView {
 
         Text iconText = new Text(icon);
         iconText.getStyleClass().add("nav-icon");
-
         Label label = new Label(text);
         label.getStyleClass().add("nav-label");
 
@@ -153,7 +181,5 @@ public class DashboardView {
         return btn;
     }
 
-    public BorderPane getRoot() {
-        return root;
-    }
+    public BorderPane getRoot() { return root; }
 }

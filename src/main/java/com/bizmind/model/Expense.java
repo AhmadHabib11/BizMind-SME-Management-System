@@ -2,12 +2,11 @@ package com.bizmind.model;
 
 import javafx.beans.property.*;
 import java.time.LocalDate;
+import java.util.UUID;
 
-/**
- * Expense model with JavaFX properties for TableView binding.
- * Covers US-16 (Add Expense), US-17 (Categorize Expenses).
- */
 public class Expense {
+
+    private UUID dbId; // primary key in Supabase
 
     private final StringProperty title;
     private final StringProperty category;
@@ -47,4 +46,8 @@ public class Expense {
     public ObjectProperty<LocalDate> dateProperty() { return date; }
     public LocalDate getDate()                      { return date.get(); }
     public void setDate(LocalDate v)                { date.set(v); }
+
+    // --- DB Id ---
+    public UUID getDbId()       { return dbId; }
+    public void setDbId(UUID v) { dbId = v; }
 }

@@ -356,9 +356,13 @@ public class InventoryView {
 
         Optional<ButtonType> result = confirm.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
-            InventoryManager.getInstance().getProducts().remove(selected);
-            table.refresh();
-            showTableFeedback(actionFeedback, "Product deleted successfully", false);
+            try {
+                InventoryManager.getInstance().deleteProduct(selected);
+                table.refresh();
+                showTableFeedback(actionFeedback, "Product deleted successfully", false);
+            } catch (Exception ex) {
+                showTableFeedback(actionFeedback, "Delete failed: " + ex.getMessage(), true);
+            }
         }
     }
 

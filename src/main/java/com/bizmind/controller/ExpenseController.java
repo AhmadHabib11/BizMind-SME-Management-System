@@ -85,7 +85,12 @@ public class ExpenseController {
         String description = view.descriptionArea.getText().trim();
 
         Expense expense = new Expense(title, category, amount, description, date);
-        ExpenseManager.getInstance().addExpense(expense);
+        try {
+            ExpenseManager.getInstance().addExpense(expense);
+        } catch (Exception ex) {
+            showFeedback(feedback, "✗ Save failed: " + ex.getMessage(), true);
+            return;
+        }
 
         showFeedback(feedback, "✓ Expense \"" + title + "\" saved successfully!", false);
 
